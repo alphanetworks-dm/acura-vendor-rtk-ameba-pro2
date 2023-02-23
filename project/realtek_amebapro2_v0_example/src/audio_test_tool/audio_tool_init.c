@@ -20,6 +20,7 @@
 #include "audio_tool_command.h"
 #endif
 #include "audio_tool_init.h"
+#include "audio_http_server.h"
 
 #define AUDIO_TRANSFER_FUNC 0
 
@@ -655,6 +656,11 @@ void audio_tool_flow_init(void *param)
 	}
 
 	audio_save_log_init();
+
+	// register the audio disk and http server for audio data dump
+	register_audio_disk_tag("audio_ram:/", strlen("audio_ram:/"));
+	// if opening http already please comment this and see audio_http_server.h
+	audio_httpd_create();
 
 #if AUDIO_TRANSFER_FUNC
 	if (xTaskCreate(audio_data_transfer, ((const char *)"au_trans"), 1024 * 8, NULL, tskIDLE_PRIORITY + 1, NULL) != pdPASS) {

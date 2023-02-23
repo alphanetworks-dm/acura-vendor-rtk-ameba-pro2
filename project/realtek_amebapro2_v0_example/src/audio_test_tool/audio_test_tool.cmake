@@ -51,6 +51,7 @@ list(
 	pcm8K_music.c
 	pcm16K_music.c
 	audio_cjson_generater.c
+	audio_http_server.c
 	skynet/skynet_device.c
 	skynet/module_p2p_audio.c
 )	
