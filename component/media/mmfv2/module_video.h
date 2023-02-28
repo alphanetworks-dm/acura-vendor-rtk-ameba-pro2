@@ -94,6 +94,9 @@ typedef struct video_ctx_s {
 	uint32_t timestamp_offset;
 	void (*meta_cb)(void *);
 	rate_ctrl_param_t rate_ctrl_p;
+	int channel_offset;
+	int offset_set;
+	int output_frames;
 } video_ctx_t;
 
 extern mm_module_t video_module;

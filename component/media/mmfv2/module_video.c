@@ -134,6 +134,12 @@ void video_rate_control_moniter_sample_rate(video_ctx_t *ctx, uint32_t frame_siz
 		}
 	}
 }
+static void update_video_offset(uint32_t isp_timestamp, uint32_t arg)
+{
+	video_ctx_t *ctx = (video_ctx_t *)arg;
+	ctx->channel_offset = (int)xTaskGetTickCount() - (int)isp_timestamp;
+}
+
 static int ch4_recieve_add[2] = {0};
 static uint32_t ch4_last_frame_tick = 0;
 void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
@@ -147,7 +153,13 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 	mm_context_t *mctx = (mm_context_t *)ctx->parent;
 	mm_queue_item_t *output_item;
 
-	uint32_t timestamp = xTaskGetTickCount() + ctx->timestamp_offset;
+	if (!ctx->offset_set) {
+		ctx->offset_set = 1;
+		update_video_offset(enc2out->time_stamp, (uint32_t)ctx);
+		//uint32_t timestamp = xTaskGetTickCount();
+	}
+	uint32_t timestamp = (uint32_t)((int)enc2out->time_stamp + (int)ctx->channel_offset + (int)v_adp->tick_offset[enc2out->ch] + (int)ctx->timestamp_offset);
+
 	int is_output_ready = 0;
 
 #if MMF_VIDEO_DEBUG
@@ -251,7 +263,7 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 				}
 				output_item->size = enc2out->jpg_len;
 				output_item->timestamp = timestamp;
-				output_item->hw_timestamp = enc2out->enc_time;
+				output_item->hw_timestamp = enc2out->time_stamp;
 				output_item->type = AV_CODEC_ID_MJPEG;
 				output_item->priv_data = enc2out->jpg_slot;//JPEG buffer used slot
 
@@ -369,8 +381,8 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 				}
 			}
 
-			output_item->timestamp = timestamp;
-			output_item->hw_timestamp = enc2out->enc_time;
+			output_item->timestamp = timestamp; //rtp timestamp
+			output_item->hw_timestamp = enc2out->time_stamp;
 			output_item->priv_data = enc2out->enc_slot;//ENC buffer used slot
 
 			if (show_fps) {
@@ -405,6 +417,7 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 					queue_len = queue_len - 1;
 				}
 			}
+			//printf("Video TS => KM: %d en %d, TM: %d, diff: %d\r\n", enc2out->time_stamp, enc2out->enc_time, output_item->timestamp, enc2out->time_stamp - output_item->timestamp);
 			if (xQueueSend(mctx->output_ready, (void *)&output_item, 0) != pdTRUE) {
 				if (enc2out->codec <= CODEC_JPEG) {
 					video_encbuf_release(enc2out->ch, enc2out->codec, output_item->size);

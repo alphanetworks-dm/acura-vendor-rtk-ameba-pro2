@@ -74,9 +74,11 @@ unsigned char *video_load_sensor(unsigned int sensor_start_addr);
 unsigned char *video_load_iq(unsigned int iq_start_addr);
 static void isp_set_dn_initial_mode(int mode);
 /////////////////////////////////
-#include "section_config.h"
-SDRAM_DATA_SECTION unsigned char sensor_buf[FW_SENSOR_SIZE];
-SDRAM_DATA_SECTION unsigned char iq_buf[FW_IQ_SIZE];
+SECTION(".sdram.bss")
+unsigned char sensor_buf[FW_SENSOR_SIZE];
+
+SECTION(".sdram.bss")
+unsigned char iq_buf[FW_IQ_SIZE];
 
 int video_dbg_level = VIDEO_LOG_MSG;
 
@@ -419,6 +421,8 @@ int video_ctrl(int ch, int cmd, int arg)
 		memset(&rc_ctrl, 0x0, sizeof(rate_ctrl_s));
 		rc_ctrl.fps = arg;
 		hal_video_set_rc(&rc_ctrl, ch);
+		// update the fps information to the hal layer
+		hal_video_set_fps(arg, ch);
 	}
 	break;
 	//type 0:HEVC 1:H264 2:JPEG 3:NV12 4:RGB 5:NV16
@@ -800,6 +804,7 @@ int video_open(video_params_t *v_stream, output_callback_t output_cb, void *ctx)
 
 	if (v_stream->fps) {
 		fps = v_stream->fps;
+		hal_video_set_fps(fps, ch);
 	}
 
 	if (v_stream->bps) {
@@ -860,7 +865,7 @@ int video_open(video_params_t *v_stream, output_callback_t output_cb, void *ctx)
 
 	//if (fcs_v) {
 	if (isp_boot->fcs_status == 1 && isp_boot->fcs_setting_done == 0 && isp_boot->video_params[ch].fcs == 1) {
-
+		hal_video_set_fps(isp_boot->video_params[ch].fps, ch); // for count the enc offset of the fcs channel
 		if (hal_video_out_cb(output_cb, 4096, (uint32_t)ctx, ch) != OK) {
 			video_dprintf(VIDEO_LOG_ERR, "hal_video_cb_register fail\n");
 			return -1;
@@ -1049,6 +1054,7 @@ int video_open(video_params_t *v_stream, output_callback_t output_cb, void *ctx)
 int video_close(int ch)
 {
 	voe_info.stream_is_open[ch] = 0;
+	hal_video_set_fps(0, ch);
 	video_dprintf(VIDEO_LOG_INF, "hal_video_close\r\n");
 	if (hal_video_close(ch) != OK) {
 		video_dprintf(VIDEO_LOG_ERR, "hal_video_close fail\n");

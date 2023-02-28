@@ -884,7 +884,8 @@ static void create_sdp_a_string(char *string, struct stream_context *s, void *ex
 				"a=ptime:20" CRLF \
 				"a=maxptime:60" CRLF \
 				"a=control:streamid=%d" CRLF \
-				, (s->codec->pt + s->stream_id), s->codec->clock_rate, s->codec->audio_channels, (s->codec->pt + s->stream_id), s->samplerate, s->channel, s->stream_id);
+				, (s->codec->pt + s->stream_id), s->codec->clock_rate, s->channel/*s->codec->audio_channels*/, (s->codec->pt + s->stream_id), s->samplerate, s->channel,
+				s->stream_id);
 		//printf("OPUS\r\n%s\r\n",string);
 
 		/*
