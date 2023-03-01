@@ -44,6 +44,7 @@ extern void inic_ipc_mp_command(char *token, unsigned int cmd_len, int show_msg)
 extern int wext_private_command(const char *ifname, char *cmd, int show_msg);
 #endif
 #endif
+extern void at_ftl_init(void);
 #if defined(ESSENTIAL2)
 extern void at_arlo_init(void);
 #endif
