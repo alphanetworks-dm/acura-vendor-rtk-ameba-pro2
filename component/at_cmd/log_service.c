@@ -45,6 +45,7 @@ extern int wext_private_command(const char *ifname, char *cmd, int show_msg);
 #endif
 #endif
 extern void at_ftl_init(void);
+extern void at_arlo_init(void);
 
 void at_log_init(void);
 
@@ -107,7 +108,7 @@ log_init_t log_init_table[] = {
 #if defined(CONFIG_ISP) && CONFIG_ISP
 	at_isp_init,
 #endif
-
+	at_arlo_init,
 #endif
 };
 #else
