@@ -264,7 +264,7 @@ void *log_handler(char *cmd)
 		token = strtok(copy, "=");  // ATCMD type
 	else
 		token = strtok(copy, " ");  // ESSENTIAL2: allow for command line type
-
+#else
 	token = strtok(copy, "=");
 #endif    
 	param = strtok(NULL, "\0");
