@@ -26,14 +26,14 @@
 // => ex: if power = 19dBm, set power bt rate index = 26
 const u32 array_mp_8735b_phy_reg_pg[] = {
 	0, 0, 0, 0x00000c20, 0xffffffff, 0x262b2b2b, // {11M 5.5M 2M 1M}			(19 21.5 21.5 21.5 dBm)
-	0, 0, 0, 0x00000c24, 0xffffffff, 0x29292929, // {18M 12M 9M 6M}				(20.5 20.5 20.5 20.5 dBm)
-	0, 0, 0, 0x00000c28, 0xffffffff, 0x22262929, // {54M 48M 36M 24M}			(17 19 20.5 20.5 dBm)
-	0, 0, 0, 0x00000c2c, 0xffffffff, 0x28282828, // HT {MCS3 MCS2 MCS1 MCS0}	(20 20 20 20 dBm)
-	0, 0, 0, 0x00000c30, 0xffffffff, 0x20242828, // HT {MCS7 MCS6 MCS5 MCS4}	(16 18 20 20 dBm)
-	1, 0, 0, 0x00000c24, 0xffffffff, 0x29292929, // {8M 12M 9M 6M}				(20.5 20.5 20.5 20.5 dBm)
-	1, 0, 0, 0x00000c28, 0xffffffff, 0x22262929, // {54M 48M 36M 24M}			(17 19 20.5 20.5 dBm)
-	1, 0, 0, 0x00000c2c, 0xffffffff, 0x28282828, // HT {MCS3 MCS2 MCS1 MCS0}	(20 20 20 20 dBm)
-	1, 0, 0, 0x00000c30, 0xffffffff, 0x20242828  // HT {MCS7 MCS6 MCS5 MCS4}	(16 18 20 20 dBm)
+	0, 0, 0, 0x00000c24, 0xffffffff, 0x27272727, // {18M 12M 9M 6M}				(19.5 19.5 19.5 19.5 dBm)
+	0, 0, 0, 0x00000c28, 0xffffffff, 0x22272727, // {54M 48M 36M 24M}			(17 19.5 19.5 19.5 dBm)
+	0, 0, 0, 0x00000c2c, 0xffffffff, 0x26262626, // HT {MCS3 MCS2 MCS1 MCS0}	(19 19 19 19 dBm)
+	0, 0, 0, 0x00000c30, 0xffffffff, 0x20222426, // HT {MCS7 MCS6 MCS5 MCS4}	(16 17 18 19 dBm)
+	1, 0, 0, 0x00000c24, 0xffffffff, 0x27272727, // {8M 12M 9M 6M}				(19.5 19.5 19.5 19.5 dBm)
+	1, 0, 0, 0x00000c28, 0xffffffff, 0x22272727, // {54M 48M 36M 24M}			(17 19.5 19.5 19.5 dBm)
+	1, 0, 0, 0x00000c2c, 0xffffffff, 0x26262626, // HT {MCS3 MCS2 MCS1 MCS0}	(19 19 19 19 dBm)
+	1, 0, 0, 0x00000c30, 0xffffffff, 0x20222426  // HT {MCS7 MCS6 MCS5 MCS4}	(16 17 18 19 dBm)
 };
 
 /******************************************************************************
