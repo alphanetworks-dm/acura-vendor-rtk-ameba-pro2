@@ -54,6 +54,7 @@ int check_in_critical(void)
 
 #define CRLF_CONVERT 1
 #define STDOUT_TASK 1
+#define CRLF_LOCK 1
 
 #if defined(STDOUT_TASK) && (STDOUT_TASK==1)
 #include <FreeRTOS.h>
@@ -133,6 +134,31 @@ char *strnchr(char *str, char c, int len)
 	return NULL;
 }
 
+
+#if defined(CRLF_LOCK) && (CRLF_LOCK==1)
+static SemaphoreHandle_t __write_lock;
+__attribute__((constructor))
+static void init_write_lock(void)
+{
+	__write_lock = xSemaphoreCreateMutex();
+}
+#endif
+
+void __write_crlf_lock(void)
+{
+#if defined(CRLF_LOCK) && (CRLF_LOCK==1)
+	xSemaphoreTake(__write_lock, (TickType_t) portMAX_DELAY);
+#endif
+}
+
+void __write_crlf_unlock(void)
+{
+#if defined(CRLF_LOCK) && (CRLF_LOCK==1)
+	xSemaphoreGive(__write_lock);
+#endif
+}
+
+
 void __write_to_interface_buffer_with_crlf(int file, const void *ptr, size_t len)
 {
 	int cnt = 0;
@@ -145,20 +171,23 @@ void __write_to_interface_buffer_with_crlf(int file, const void *ptr, size_t len
 	while (p && p - orig < len) {
 		int delta_size = p - o;
 
+		__write_crlf_lock();
 		if (delta_size > 0) {
 			__write_to_interface_buffer(file, o, delta_size);
 		}
 		__write_to_interface_buffer(file, "\n\r", 2);
+		__write_crlf_unlock();
 
 		o = p + 1;
 		p = strnchr(o, '\n', len);
 	}
 
 	int rest_size = len - (o - orig);
+	__write_crlf_lock();
 	if (rest_size > 0) {
 		__write_to_interface_buffer(file, o, rest_size);
 	}
-
+	__write_crlf_unlock();
 }
 
 size_t _write(int file, const void *ptr, size_t len)
@@ -168,7 +197,9 @@ size_t _write(int file, const void *ptr, size_t len)
 #if CRLF_CONVERT
 	__write_to_interface_buffer_with_crlf(0, (void *)ptr, len);
 #else
+	__write_crlf_lock();
 	__write_to_interface_buffer(0, (void *)ptr, len);
+	__write_crlf_unlock();
 #endif
 	return len;
 }
