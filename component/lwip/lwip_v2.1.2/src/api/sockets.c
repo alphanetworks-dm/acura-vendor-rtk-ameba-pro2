@@ -4004,6 +4004,151 @@ fcntl(int s, int cmd, ...)
 }
 #endif
 
+/*ESSENTIAL2 START*/
+#if LWIP_COMPAT_SOCKETS != 2
+#ifdef ESSENTIAL2
+int accept(int s, struct sockaddr *addr, socklen_t *addrlen)
+{
+    return lwip_accept(s, addr, addrlen);
+}
+
+int bind(int s, const struct sockaddr *name, socklen_t namelen)
+{
+    return lwip_bind(s, name, namelen);
+}
+
+int shutdown(int s, int how)
+{
+    return lwip_shutdown(s, how);
+}
+
+int getpeername (int s, struct sockaddr *name, socklen_t *namelen)
+{
+    return lwip_getpeername (s, name, namelen);
+}
+
+int getsockname (int s, struct sockaddr *name, socklen_t *namelen)
+{
+    return lwip_getsockname (s, name, namelen);
+}
+
+int getsockopt (int s, int level, int optname, void *optval, socklen_t *optlen)
+{
+    return lwip_getsockopt(s, level, optname, optval, optlen);
+}
+
+int setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen)
+{
+    return lwip_setsockopt(s, level, optname, optval, optlen);
+}
+
+int closesocket (int s)
+{
+    return lwip_close(s);
+}
+
+int connect(int s, const struct sockaddr *name, socklen_t namelen)
+{
+    return lwip_connect(s, name, namelen);
+}
+
+int listen(int s, int backlog)
+{
+    return lwip_listen(s, backlog);
+}
+
+int recv(int s, void *mem, size_t len, int flags)
+{
+    return lwip_recv(s, mem, len, flags);
+}
+
+int recvfrom(int s, void *mem, size_t len, int flags, struct sockaddr *from, socklen_t *fromlen)
+{
+    return lwip_recvfrom(s, mem, len, flags, from, fromlen);
+}
+
+int send(int s, const void *dataptr, size_t size, int flags)
+{
+    return lwip_send(s, dataptr, size, flags);
+}
+
+int sendto(int s, const void *dataptr, size_t size, int flags, const struct sockaddr *to, socklen_t tolen)
+{
+    return lwip_sendto(s, dataptr, size, flags, to, tolen);
+}
+
+int socket(int domain, int type, int protocol)
+{
+    return lwip_socket(domain, type, protocol);
+}
+
+int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset, struct timeval *timeout)
+{
+    return lwip_select(maxfdp1, readset, writeset, exceptset, timeout);
+}
+
+int poll(struct pollfd *fds, nfds_t nfds, int timeout)
+{
+    return lwip_poll(fds, nfds, timeout);
+}
+
+int ioctlsocket(int s, long cmd, void *argp)
+{
+    return lwip_ioctl(s, cmd, argp);
+}
+
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size)
+{
+    return lwip_inet_ntop(af,src,dst,size);
+}
+
+int inet_pton(int af, const char *src, void *dst)
+{
+    return lwip_inet_pton(af,src,dst);
+}
+
+#if LWIP_POSIX_SOCKETS_IO_NAMES
+ssize_t read(int s, void *mem, size_t len)
+{
+    return lwip_read(s,mem,len);
+}
+
+ssize_t readv(int s, const struct iovec *iov, int iovcnt)
+{
+    return  lwip_readv(s,iov,iovcnt);
+}
+
+ssize_t write(int s, const void *dataptr, size_t len)
+{
+    return lwip_write(s,dataptr,len);
+}
+
+ssize_t writev(int s, const struct iovec *iov, int iovcnt)
+{
+    return  lwip_writev(s,iov,iovcnt);
+}
+
+int close(int s)
+{
+    return lwip_close(s);
+}
+
+int fcntl(int s, int cmd, int val)
+{
+    return lwip_fcntl(s,cmd,val);
+}
+
+int ioctl(int s, long cmd, void *argp)
+{
+    return lwip_ioctl(s,cmd,argp);
+}
+
+#endif /* LWIP_POSIX_SOCKETS_IO_NAMES */
+
+#endif
+#endif
+/*ESSENTIAL2 END*/
+
 const char *
 lwip_inet_ntop(int af, const void *src, char *dst, socklen_t size)
 {

@@ -616,6 +616,44 @@ int lwip_inet_pton(int af, const char *src, void *dst);
 
 #if LWIP_COMPAT_SOCKETS
 #if LWIP_COMPAT_SOCKETS != 2
+/*ESSENTIAL2 START*/
+#ifdef ESSENTIAL2
+//NOTE: cannot use #defines here, use function define
+int accept(int s, struct sockaddr *addr, socklen_t *addrlen);
+int bind(int s, const struct sockaddr *name, socklen_t namelen);
+int shutdown(int s, int how);
+int getpeername (int s, struct sockaddr *name, socklen_t *namelen);
+int getsockname (int s, struct sockaddr *name, socklen_t *namelen);
+int getsockopt (int s, int level, int optname, void *optval, socklen_t *optlen);
+int setsockopt (int s, int level, int optname, const void *optval, socklen_t optlen);
+int closesocket (int s);
+int connect(int s, const struct sockaddr *name, socklen_t namelen);
+int listen(int s, int backlog);
+int recv(int s, void *mem, size_t len, int flags);
+int recvfrom(int s, void *mem, size_t len, int flags,
+      struct sockaddr *from, socklen_t *fromlen);
+int send(int s, const void *dataptr, size_t size, int flags);
+int sendto(int s, const void *dataptr, size_t size, int flags,
+    const struct sockaddr *to, socklen_t tolen);
+int socket(int domain, int type, int protocol);
+int select(int maxfdp1, fd_set *readset, fd_set *writeset, fd_set *exceptset,
+                struct timeval *timeout);
+int poll(struct pollfd *fds, nfds_t nfds, int timeout);
+int ioctlsocket(int s, long cmd, void *argp);
+const char *inet_ntop(int af, const void *src, char *dst, socklen_t size);
+int inet_pton(int af, const char *src, void *dst);
+#if LWIP_POSIX_SOCKETS_IO_NAMES
+/** @ingroup socket */
+ssize_t read(int s, void *mem, size_t len);
+ssize_t readv(int s, const struct iovec *iov, int iovcnt);
+ssize_t write(int s, const void *dataptr, size_t size);
+ssize_t writev(int s, const struct iovec *iov, int iovcnt);
+int close(int s);
+int fcntl(int s, int cmd, int val);
+int ioctl(int s, long cmd, void *argp);
+#endif /* LWIP_POSIX_SOCKETS_IO_NAMES */
+
+#else
 /** @ingroup socket */
 #define accept(s,addr,addrlen)                    lwip_accept(s,addr,addrlen)
 /** @ingroup socket */
@@ -682,6 +720,8 @@ int lwip_inet_pton(int af, const char *src, void *dst);
 #define ioctl(s,cmd,argp)                         lwip_ioctl(s,cmd,argp)
 #endif /* LWIP_POSIX_SOCKETS_IO_NAMES */
 #endif /* LWIP_COMPAT_SOCKETS != 2 */
+#endif /* ESSENTIAL2 */
+/*ESSENTIAL2 END*/
 
 #endif /* LWIP_COMPAT_SOCKETS */
 
