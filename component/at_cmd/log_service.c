@@ -91,7 +91,7 @@ log_init_t log_init_table[] = {
 #endif
 	at_log_init,
 	//	at_app_init,
-#if CONFIG_ETHERNET
+#if (CONFIG_ETHERNET == 1 && ETHERNET_INTERFACE == MII_INTERFACE)
 	at_ethernet_init,
 #endif
 
@@ -254,12 +254,12 @@ void *log_handler(char *cmd)
 	char tok[33] = {0};//'\0'
 	strncpy(copy, cmd, LOG_SERVICE_BUFLEN - 1);
 
-    log_remove_backspace(copy);
 #if defined(USE_STRSEP)
 	token = _strsep(&copy, "=");
 	param = copy;
 #else
 #if defined(ESSENTIAL2)
+    log_remove_backspace(copy);
 	if (strchr(copy, '='))
 		token = strtok(copy, "=");  // ATCMD type
 	else

@@ -9,7 +9,7 @@
 #define	_AT_DHCP_ETHERNET_MII_     "ATE0"
 #define	_AT_SET_DEFAULT_INTERFACE  "ATE1"
 
-#if CONFIG_ETHERNET
+#if (CONFIG_ETHERNET == 1 && ETHERNET_INTERFACE == MII_INTERFACE)
 extern int dhcp_ethernet_mii;
 extern int ethernet_if_default;
 

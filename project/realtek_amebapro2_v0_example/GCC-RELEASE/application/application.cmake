@@ -274,6 +274,7 @@ list(
 list(
 	APPEND app_sources
 	${sdk_root}/component/ethernet_mii/ethernet_mii.c
+	${sdk_root}/component/ethernet_mii/ethernet_usb.c
 )
 
 #network
@@ -1005,6 +1006,18 @@ list(
 	${sdk_root}/component/soc/8735b/misc/driver/xmodem
 
 	${sdk_root}/component/network/coap/include
+	
+	${sdk_root}/component/usb/common_new/
+	${sdk_root}/component/usb/host_new/
+	${sdk_root}/component/usb/host_new/msc
+	${sdk_root}/component/usb/host_new/cdc_ecm
+	${sdk_root}/component/usb/host_new/core
+	${sdk_root}/component/usb/device_new/core
+	${sdk_root}/component/usb/device_new/msc
+	${sdk_root}/component/usb/
+	${sdk_root}/component/usb/device_new/cdc_acm
+	${sdk_root}/component/usb/device_new/uvc
+	${sdk_root}/component/usb/device_new/dfu
 )
 
 target_include_directories( ${app} PUBLIC ${app_inc_path} )

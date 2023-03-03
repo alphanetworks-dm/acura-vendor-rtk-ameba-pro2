@@ -13,7 +13,7 @@
 #include "ethernet_mii.h"
 #include "platform_opts.h"
 #include "ethernet_ex_api.h"
-
+#if(CONFIG_ETHERNET == 1 && ETHERNET_INTERFACE == MII_INTERFACE)
 #if ((defined(CONFIG_PLATFORM_8195BHP) && (CONFIG_PLATFORM_8195BHP == 1))||(defined(CONFIG_PLATFORM_8735B) && (CONFIG_PLATFORM_8735B == 1)))
 #define ETH_TXDONE              EthTxDone
 #define ETH_RXDONE              EthRxDone
@@ -438,4 +438,4 @@ void ethernet_wlan_iperf_test_task(void *param)
 }
 
 #endif
-
+#endif
