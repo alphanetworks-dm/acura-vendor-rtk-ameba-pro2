@@ -513,10 +513,10 @@ void fATII(void *arg)
 				Erase_Fastconnect_data();
 				printf("[ATII] erase AP info.\r\n");
 			} else {
-				int *iq_tmp = malloc(CMD_DATA_SIZE*4);
+				int *iq_tmp = malloc(CMD_DATA_SIZE * 4);
 				if (iq_tmp) {
-					memset(iq_tmp, 0, CMD_DATA_SIZE*4);
-					ftl_common_write(TUNING_IQ_FW, (u8*)iq_tmp, CMD_DATA_SIZE*4);
+					memset(iq_tmp, 0, CMD_DATA_SIZE * 4);
+					ftl_common_write(TUNING_IQ_FW, (u8 *)iq_tmp, CMD_DATA_SIZE * 4);
 					printf("[ATII] erase 256K..Done.\r\n");
 					free(iq_tmp);
 				}
@@ -524,8 +524,8 @@ void fATII(void *arg)
 		}
 		printf("[atcmd_isp] not CONFIG_TUNING.\r\n");
 	} else if (strcmp(argv[1], "meta") == 0) {
-extern isp_statis_meta_t jpg_meta;
-		isp_statis_meta_t jmeta = jpg_meta;
+		extern isp_statis_meta_t _meta;
+		isp_statis_meta_t jmeta = _meta;
 		printf("[%s]exposure_h:%d exposure_l:%d\r\n", __FUNCTION__, jmeta.exposure_h, jmeta.exposure_l);
 		printf("[%s]gain_h:%d gain_l:%d\r\n", __FUNCTION__, jmeta.gain_h, jmeta.gain_l);
 		printf("[%s]wb_r_gain:%d wb_b_gain:%d wb_g_gain:%d\r\n", __FUNCTION__, jmeta.wb_r_gain, jmeta.wb_b_gain, jmeta.wb_g_gain);
@@ -621,61 +621,8 @@ extern isp_statis_meta_t jpg_meta;
 				printf("get info fail hal_video_get_AWB_statis.\r\n");
 			}
 		}
-		if (strcmp(argv[2], "mipi") == 0) {
-			int value;
-			value = HAL_READ32(0x40300000, 0xC0198);
-			printf("frame_cnt: 0x%08X (%d) \r\n", value, value);
-			value = HAL_READ32(0x40300000, 0xC019C);
-			printf("pixel_cnt: 0x%08X (%d) \r\n", value, value);
-			value = HAL_READ32(0x40300000, 0xC01A0);
-			printf("line_cnt: 0x%08X (%d) \r\n", value, value);
-		} else if (strcmp(argv[2], "sys") == 0) {
-			int value;
-			value = HAL_READ32(0x40300000, 0x20);
-			printf("frame_cnt(input): 0x%08X (%d) \r\n", value, value);
-			value = HAL_READ32(0x40300000, 0x28);
-			printf("frame_idle: 0x%08X (%d) \r\n", value, value);
-		}
-	} else if (strcmp(argv[1], "func_en") == 0) {
-		int RegVale = HAL_READ32(0x40300000, 0x00004);
-		printf("Value:0x%08X  LSC:%d  NR:%d  DPC:%d  EE:%d  Gamma:%d \r\n"
-		, RegVale, (RegVale&0x18)==0x18, (RegVale&0x20000)==0x20000, (RegVale&0x8000)==0x8000, (RegVale&0x4000)==0x4000, (RegVale&0x05)==0x05);
-		if (argc == 7) {
-			if(atoi(argv[2]) == 1) //bit: 3&4
-				RegVale = RegVale | 0x18;
-			else
-				RegVale = RegVale & (~0x18);
-				
-			if(atoi(argv[3]) == 1) //bit: 17
-				RegVale = RegVale | 0x20000;
-			else
-				RegVale = RegVale & (~0x20000);
-			
-			if(atoi(argv[4]) == 1) //bit: 15
-				RegVale = RegVale | 0x8000;
-			else
-				RegVale = RegVale & (~0x8000);
-				
-			if(atoi(argv[5]) == 1) //bit: 14
-				RegVale = RegVale | 0x4000;
-			else
-				RegVale = RegVale & (~0x4000);
-				
-			if(atoi(argv[6]) == 1) //bit: 2&0
-				RegVale = RegVale | 0x05;
-			else
-				RegVale = RegVale & (~0x05);
-				
-			HAL_WRITE32(0x40300000, 0x00004, RegVale);
-			
-			RegVale = HAL_READ32(0x40300000, 0x00004);
-			//bLSCEn, char bNREn, char bDPCEn, char bEEEn, char bGammaEn
-			printf("{Changed] Value:0x%08X  LSC:%d  NR:%d  DPC:%d  EE:%d  Gamma:%d \r\n"
-			, RegVale, (RegVale&0x18)==0x18, (RegVale&0x20000)==0x20000, (RegVale&0x8000)==0x8000, (RegVale&0x4000)==0x4000, (RegVale&0x05)==0x05);
-		} else {
-			printf("incorrect argument number.(%d)\r\nPlease follow below format:\r\n", argc);
-			printf("[Example] ATII=func_en,bLSC,bNR,bDPC,bEE,bGamma\r\n", argc);
-		}
+	} else {
+
 	}
 
 }
@@ -771,6 +718,41 @@ EXIT:
 	printf("error at command format\r\n");
 }
 
+void fATIM(void *arg)
+{
+	volatile int argc, error_no = 0;
+	char *argv[MAX_ARGC] = {0};
+	int mode;
+
+	if (!arg) {
+		AT_DBG_MSG(AT_FLAG_WIFI, AT_DBG_ERROR,
+				   "\r\n[ATPW] Usage : ATPW=<mode>");
+		error_no = 1;
+		goto EXIT;
+	}
+
+	argc = parse_param(arg, argv);
+
+	struct private_mask_s pr_mask;
+	//=ch,en,grid_mode,id,startx,starty,w,h,color,cols,rows  0,1,1,1,100,100,960,540,0x00FF00,32,18
+	printf("[%s] ATIM=ch,en,grid_mode,id,startx,starty,w,h,color,cols,rows \r\n");
+	pr_mask.en = atoi(argv[2]);
+	pr_mask.grid_mode = atoi(argv[3]);
+	pr_mask.id = atoi(argv[4]);//0~3 only for rect-mode
+	pr_mask.color = atoi(argv[9]);//BBGGRR
+	pr_mask.start_x = atoi(argv[5]);//2-align
+	pr_mask.start_y = atoi(argv[6]);//2-align
+	pr_mask.w = atoi(argv[7]);//16-align when grid-mode
+	pr_mask.h = atoi(argv[8]);
+	pr_mask.cols = atoi(argv[10]);//8 align
+	pr_mask.rows = atoi(argv[11]);
+	memset(pr_mask.bitmap, 0xAA, 160);
+	video_set_private_mask(atoi(argv[1]), &pr_mask);
+
+	return;
+EXIT:
+	printf("error at command format\r\n");
+}
 
 log_item_t at_isp_items[] = {
 	{"ATIT", fATIT,},
@@ -779,6 +761,7 @@ log_item_t at_isp_items[] = {
 	{"ATII", fATII,},
 	{"ATIO", fATIO,},
 	{"ATIR", fATIR,},
+	{"ATIM", fATIM,},
 };
 
 void at_isp_init(void)

@@ -1020,6 +1020,10 @@ int video_open(video_params_t *v_stream, output_callback_t output_cb, void *ctx)
 		v_adp->cmd[ch]->roiMapDeltaQpEnable = 1;
 	} */
 
+	if (v_stream->fast_mask_en) {
+		video_set_private_mask(ch, &v_stream->fast_mask);
+	}
+
 	video_dprintf(VIDEO_LOG_INF, "hal_video_open\r\n");
 	if (hal_video_open(ch) != OK) {
 		video_dprintf(VIDEO_LOG_ERR, "hal_video_open fail\n");
@@ -1068,9 +1072,14 @@ int video_get_stream_info(int id)
 #define TUNING_IQ     0X00
 #define TUNING_SENSOR 0X01
 static unsigned char *g_uvcd_iq = NULL;
+static unsigned char *g_uvcd_sensor = NULL;
 void video_set_uvcd_iq(unsigned int addr)
 {
 	g_uvcd_iq = (unsigned char *)addr;
+}
+void video_set_uvcd_sensor(unsigned int addr)
+{
+	g_uvcd_sensor = (unsigned char *)addr;
 }
 int sd_load_iq_sensor(int index, unsigned char *buf) //Index 0 iq, index 1 sensor
 {
@@ -1130,6 +1139,22 @@ hal_video_adapter_t *video_init(int iq_start_addr, int sensor_start_addr)
 				}
 			} else {
 				video_dprintf(VIDEO_LOG_MSG, "[%s] uvcd iq is null.\r\n", __FUNCTION__);
+			}
+
+			if (g_uvcd_sensor) {
+				if (g_uvcd_sensor[0] == 0 && g_uvcd_sensor[1] == 0) {
+					int *dtmp = (int *)sensor_addr;
+					memcpy(g_uvcd_sensor, sensor_addr, FW_SENSOR_SIZE);
+					hal_video_load_sensor((voe_cpy_t)hal_voe_cpy, (int *)sensor_addr, __voe_code_start__);
+					video_dprintf(VIDEO_LOG_MSG, "[%s] Load default SNR.size:%d 0x%X,	0x%X 0x%X 0x%X.\r\n", __FUNCTION__, *dtmp, *dtmp, dtmp[1], dtmp[2], dtmp[3]);
+				} else {
+					int *dtmp = (int *)g_uvcd_sensor;
+					memcpy(sensor_addr, g_uvcd_sensor, FW_SENSOR_SIZE);
+					hal_video_load_sensor((voe_cpy_t)hal_voe_cpy, (int *)g_uvcd_sensor, __voe_code_start__);
+					video_dprintf(VIDEO_LOG_MSG, "[%s] Load user SNR.size:%d 0x%X,	0x%X 0x%X 0x%X.\r\n", __FUNCTION__, *dtmp, *dtmp, dtmp[1], dtmp[2], dtmp[3]);
+				}
+			} else {
+				video_dprintf(VIDEO_LOG_MSG, "[%s] uvcd SNR is null.\r\n", __FUNCTION__);
 			}
 			hal_video_load_sensor((voe_cpy_t)hal_voe_cpy, (int *)sensor_addr, __voe_code_start__);
 #else
@@ -1255,7 +1280,21 @@ void voe_set_iq_sensor_fw(int id)
 	} else {
 		video_dprintf(VIDEO_LOG_MSG, "[%s] uvcd iq is null.\r\n", __FUNCTION__);
 	}
-	hal_video_load_sensor((voe_cpy_t)hal_voe_cpy, (int *)sensor_addr, __voe_code_start__);
+	if (g_uvcd_sensor) {
+		if (g_uvcd_sensor[0] == 0 && g_uvcd_sensor[1] == 0) {
+			int *dtmp = (int *)sensor_addr;
+			memcpy(g_uvcd_sensor, sensor_addr, FW_SENSOR_SIZE);
+			hal_video_load_sensor((voe_cpy_t)hal_voe_cpy, (int *)sensor_addr, __voe_code_start__);
+			video_dprintf(VIDEO_LOG_MSG, "[%s] Load default SNR.size:%d 0x%X,	0x%X 0x%X 0x%X.\r\n", __FUNCTION__, *dtmp, *dtmp, dtmp[1], dtmp[2], dtmp[3]);
+		} else {
+			int *dtmp = (int *)g_uvcd_sensor;
+			memcpy(sensor_addr, g_uvcd_sensor, FW_SENSOR_SIZE);
+			hal_video_load_sensor((voe_cpy_t)hal_voe_cpy, (int *)g_uvcd_sensor, __voe_code_start__);
+			video_dprintf(VIDEO_LOG_MSG, "[%s] Load user SNR.size:%d 0x%X,	0x%X 0x%X 0x%X.\r\n", __FUNCTION__, *dtmp, *dtmp, dtmp[1], dtmp[2], dtmp[3]);
+		}
+	} else {
+		video_dprintf(VIDEO_LOG_MSG, "[%s] uvcd SNR is null.\r\n", __FUNCTION__);
+	}
 #else
 	int res = 0;
 	res = sd_load_iq_sensor(TUNING_IQ, iq_buf);
@@ -1801,3 +1840,70 @@ EXIT:
 	return -1;
 }
 #endif
+void video_set_private_mask(int ch, struct private_mask_s *pmask)
+{
+	printf("enable: %d, id: %d\r\nstart_x: %d, start_y: %d\r\ncols: %d, rows: %d\r\nw: %d, h: %d\r\n"
+		   , pmask->en, pmask->id, pmask->start_x, pmask->start_y, pmask->cols, pmask->rows, pmask->w, pmask->h);
+	if (pmask->en < 0 || pmask->en > 1) {
+		printf("[%s] invalid value pmask->en=%d", __FUNCTION__, pmask->en);
+		return;
+	}
+	if (pmask->grid_mode < 0 || pmask->grid_mode > 1) {
+		printf("[%s] invalid value pmask->grid_mode=%d", __FUNCTION__, pmask->grid_mode);
+		return;
+	}
+	if (pmask->id < 0 || pmask->id > 3) {
+		printf("[%s] invalid value pmask->id=%d", __FUNCTION__, pmask->id);
+		return;
+	}
+	if (pmask->start_x % 2) {
+		printf("[%s] invalid value pmask->start_x=%d", __FUNCTION__, pmask->start_x);
+		return;
+	}
+	if (pmask->start_y % 2) {
+		printf("[%s] invalid value pmask->start_y=%d", __FUNCTION__, pmask->start_y);
+		return;
+	}
+	if (pmask->grid_mode == 1 && pmask->cols % 8) {
+		printf("[%s] invalid value pmask->cols=%d", __FUNCTION__, pmask->cols);
+		return;
+	}
+	if (pmask->grid_mode == 1 && pmask->w % 16) {
+		int cell_w = pmask->w / pmask->cols;
+		if (cell_w % 2) {
+			printf("[%s] invalid value cell_w=%d", __FUNCTION__, cell_w);
+			return;
+		}
+	}
+	hal_video_reset_mask_status();
+	hal_video_set_mask_color(pmask->color);
+
+
+	if (pmask->grid_mode) {
+		printf("[GRID Mode]:\r\n");
+		isp_grid_t grid;
+		grid.start_x = pmask->start_x;
+		grid.start_y = pmask->start_y;
+		grid.cols = pmask->cols;
+		grid.rows = pmask->rows;
+		grid.cell_w = pmask->w / grid.cols;
+		grid.cell_h = pmask->h / grid.rows;
+		hal_video_config_grid_mask(pmask->en, grid, (uint8_t *)pmask->bitmap);
+	} else {
+		printf("[RECT Mode]:\r\n");
+		isp_rect_t rect;
+		rect.left = pmask->start_x;
+		rect.top  = pmask->start_y;
+		rect.right  = pmask->w + rect.left;
+		rect.bottom = pmask->h + rect.top;
+		hal_video_config_rect_mask(pmask->en, pmask->id, rect);
+	}
+	int is_video_not_open = 1;
+	for (int i = 0; i < MAX_CHANNEL; i++) {
+		if (voe_info.stream_is_open[i]) {
+			is_video_not_open = 0;
+			break;
+		}
+	}
+	hal_video_set_mask(ch, is_video_not_open);
+}

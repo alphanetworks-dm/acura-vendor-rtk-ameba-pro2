@@ -23,6 +23,7 @@
 #include "flash_api.h"
 #include "isp_ctrl_api.h"
 #include "sensor.h"
+#include "avcodec.h"
 
 static int wdr_mode = 2;
 
@@ -31,11 +32,10 @@ static int wdr_mode = 2;
 * Video type  : H264/HEVC
 *****************************************************************************/
 
-//#define UVC_MD
 #define V1_CHANNEL 0
-#define V1_RESOLUTION VIDEO_1536P	//VIDEO_HD//VIDEO_FHD 
-#define V1_FPS 10
-#define V1_GOP 40
+#define V1_RESOLUTION VIDEO_FHD//VIDEO_HD//VIDEO_FHD 
+#define V1_FPS 20
+#define V1_GOP 80
 #define V1_BPS 1024*1024
 #define V1_RCMODE 1 // 1: CBR, 2: VBR
 
@@ -61,18 +61,21 @@ static int wdr_mode = 2;
 #elif V1_RESOLUTION == VIDEO_HD
 #define V1_WIDTH	1280
 #define V1_HEIGHT	720
-#elif V1_RESOLUTION == VIDEO_1936P
-#define V1_WIDTH	1936
-#define V1_HEIGHT	1936
-#elif V1_RESOLUTION == VIDEO_1536P
-#define V1_WIDTH	1536
-#define V1_HEIGHT	1536
-#elif V1_RESOLUTION == VIDEO_2K
+#elif V1_RESOLUTION == VIDEO_FHD
+
+#if USE_SENSOR == SENSOR_GC4653
 #define V1_WIDTH	2560
 #define V1_HEIGHT	1440
 #else
+#if USE_SENSOR == SENSOR_JXF51
+#define V1_WIDTH	1536
+#define V1_HEIGHT	1536
+#else
 #define V1_WIDTH	1920
 #define V1_HEIGHT	1080
+#endif
+#endif
+
 #endif
 
 static mm_context_t *video_v1_ctx			= NULL;
@@ -108,6 +111,234 @@ mm_context_t *array_h264_ctx   = NULL;
 extern struct uvc_format *uvc_format_ptr;
 
 struct uvc_format *uvc_format_local = NULL;;
+
+
+
+#if CONFIG_TUNING
+
+void dump_buff(unsigned char *buf, int size)
+{
+	for (int i = 0; i < size; i++) {
+		if (i > 0 && i % 16 == 0) {
+			printf("\r\n");
+		}
+		printf("0x%02X ", buf[i]);
+	}
+	printf("\r\n");
+}
+
+#ifndef UPLOAD_SNR
+#define UPLOAD_SNR 1
+#endif
+
+#include "ftl_common_api.h"
+#include "../../usb/usb_class/device/class/uvc/tuning-server.h"
+
+#if UPLOAD_SNR
+static char pro2_upload_id[] = "PRO2UPLOAD";
+#else
+enum {
+	GPIO_PIN_NAME = 0,
+	GPIO_DIR,
+	GPIO_MODE,
+	GPIO_SET_VALUE,
+	GPIO_GET_VALUE,
+	PWM_PIN_NAME,
+	PWM_PERIOD_US,
+	PWM_SET_VALUE,
+	PWM_GET_VALUE,
+	SET_TYPE, //TYPE is GPIO or PWM
+};
+
+enum {
+	_GPIO         = 1,
+	_PWM          = 2,
+};
+
+#include "../hal/pwmout_api.h"   // mbed
+#include "gpio_api.h"
+#define MAX_DEVICES 10
+static gpio_t device_gpio[MAX_DEVICES] = {0};
+static pwmout_t device_pwm[MAX_DEVICES] = {0};
+static unsigned char device_type[MAX_DEVICES] = {0};
+#endif
+
+
+void tuning_customized_get_size_cmd(void *cmd, unsigned char *reg_buf)
+{
+#if UPLOAD_SNR
+	unsigned char *uccmd = (unsigned char *)cmd;
+	if (uccmd[4] == 0xFF) {
+		printf("[%s] 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X.\r\n", __FUNCTION__, uccmd[0], uccmd[1], uccmd[2], uccmd[3], uccmd[4], uccmd[5], uccmd[6], uccmd[7]);
+		uint32_t *ireg_buf = (uint32_t *)reg_buf;
+		*ireg_buf = strlen(pro2_upload_id);
+	}
+
+#else
+	unsigned short *pwbuf = (unsigned short *)reg_buf;
+	printf("[%s] ID:%d CMD:%d VALUE:%d.\r\n", __FUNCTION__, pwbuf[0], pwbuf[1], pwbuf[2]);
+	if (pwbuf[0] < 0 || pwbuf[0] >= MAX_DEVICES) {
+		printf("[%s] id range is 0~%d.\r\n", __FUNCTION__, MAX_DEVICES - 1);
+	}
+	int id = pwbuf[0];
+	int cmmd = pwbuf[1];
+	int val = pwbuf[2];
+
+	switch (cmmd) {
+	case GPIO_GET_VALUE:
+		printf("GPIO_GET_VALUE(Size).\r\n");
+		if (device_type[id] == _GPIO) {
+			uint32_t *ireg_buf = (uint32_t *)reg_buf;
+			*ireg_buf = 4;
+		}
+		break;
+	case PWM_GET_VALUE:
+		printf("PWM_GET_VALUE(Size).\r\n");
+		if (device_type[id] == _PWM) {
+			uint32_t *ireg_buf = (uint32_t *)reg_buf;
+			*ireg_buf = 4;
+		}
+		break;
+
+	default:
+		break;
+	}
+#endif
+}
+
+void tuning_customized_get_cmd(void *cmd, unsigned char *reg_buf)
+{
+#if UPLOAD_SNR
+	unsigned char *uccmd = (unsigned char *)cmd;
+	if (uccmd[4] == 0xFF) {
+		printf("[%s] 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X 0x%X.\r\n", __FUNCTION__, uccmd[0], uccmd[1], uccmd[2], uccmd[3], uccmd[4], uccmd[5], uccmd[6], uccmd[7]);
+		memcpy(reg_buf, pro2_upload_id, strlen(pro2_upload_id));
+	}
+#else
+	unsigned short *pwbuf = (unsigned short *)reg_buf;
+	printf("[%s] ID:%d CMD:%d VALUE:%d.\r\n", __FUNCTION__, pwbuf[0], pwbuf[1], pwbuf[2]);
+	if (pwbuf[0] < 0 || pwbuf[0] >= MAX_DEVICES) {
+		printf("[%s] id range is 0~%d.\r\n", __FUNCTION__, MAX_DEVICES - 1);
+	}
+	int id = pwbuf[0];
+	int cmmd = pwbuf[1];
+	int val = pwbuf[2];
+
+	switch (cmmd) {
+	case GPIO_GET_VALUE:
+		printf("GPIO_GET_VALUE.\r\n");
+		if (device_type[id] == _GPIO) {
+			uint32_t *ireg_buf = (uint32_t *)reg_buf;
+			int dVal = gpio_read(&device_gpio[id]);
+			*ireg_buf = dVal;
+		}
+		break;
+	case PWM_GET_VALUE:
+		printf("PWM_GET_VALUE.\r\n");
+		if (device_type[id] == _PWM) {
+			uint32_t *ireg_buf = (uint32_t *)reg_buf;
+			float fbrightness = pwmout_read(&device_pwm[id]) * 100.0f;
+			*ireg_buf = (uint32_t)fbrightness;
+		}
+		break;
+
+	default:
+		break;
+	}
+#endif
+}
+void tuning_customized_set_cmd(void *cmd, unsigned char *reg_buf)
+{
+#if UPLOAD_SNR
+	struct tuning_cmd *tuningcmd = (struct tuning_cmd *)cmd;
+	printf("[%s] opcode:%d status:%d addr:%d len:%d.\r\n", __FUNCTION__, tuningcmd->opcode, tuningcmd->status, tuningcmd->addr, tuningcmd->len);
+	printf("[%s] Buffer.\r\n", __FUNCTION__);
+	if (reg_buf[3] == 0xFE) {
+		dump_buff(reg_buf, 20 * 16);
+
+		ftl_common_write(TUNING_IQ_FW, reg_buf, tuningcmd->len);
+		unsigned char *ptmp = malloc(tuningcmd->len);
+		ftl_common_read(TUNING_IQ_FW, ptmp, tuningcmd->len);
+		printf("IQ read-write compare: %d.\r\n", memcmp(reg_buf, ptmp, tuningcmd->len));
+	} else if (reg_buf[31] == 0xFD) {
+		dump_buff(reg_buf, tuningcmd->len);
+
+		ftl_common_write(TUNING_IQ_FW + 240 * 1024, reg_buf, tuningcmd->len);
+		unsigned char *ptmp = malloc(tuningcmd->len);
+		ftl_common_read(TUNING_IQ_FW + 240 * 1024, ptmp, tuningcmd->len);
+		printf("sensor read-write compare: %d.\r\n", memcmp(reg_buf, ptmp, tuningcmd->len));
+	}
+
+#else
+	unsigned short *pwbuf = (unsigned short *)reg_buf;
+	printf("[%s] ID:%d CMD:%d VALUE:%d.\r\n", __FUNCTION__, pwbuf[0], pwbuf[1], pwbuf[2]);
+	if (pwbuf[0] < 0 || pwbuf[0] >= MAX_DEVICES) {
+		printf("[%s] id range is 0~%d.\r\n", MAX_DEVICES - 1);
+	}
+	int id = pwbuf[0];
+	int cmmd = pwbuf[1];
+	int val = pwbuf[2];
+
+	switch (cmmd) {
+	case GPIO_PIN_NAME:
+		printf("GPIO_PORT.\r\n");
+		if (device_type[id] == _GPIO) {
+			gpio_init(&device_gpio[id], val);
+		}
+		break;
+	case GPIO_DIR:
+		printf("GPIO_DIR.\r\n");
+		if (device_type[id] == _GPIO) {
+			gpio_dir(&device_gpio[id], val);
+		}
+		break;
+	case GPIO_MODE:
+		printf("GPIO_MODE.\r\n");
+		if (device_type[id] == _GPIO) {
+			gpio_mode(&device_gpio[id], val);
+		}
+		break;
+	case GPIO_SET_VALUE:
+		printf("GPIO_SET_VALUE.\r\n");
+		if (device_type[id] == _GPIO) {
+			gpio_write(&device_gpio[id], val);
+		}
+		break;
+	case PWM_PIN_NAME:
+		printf("PWM_PORT.\r\n");
+		if (device_type[id] == _PWM) {
+			pwmout_init(&device_pwm[id], val);
+		}
+		break;
+	case PWM_PERIOD_US:
+		printf("PWM_PERIOD_US.\r\n");
+		if (device_type[id] == _PWM) {
+			pwmout_period_us(&device_pwm[id], val);
+		}
+		break;
+	case PWM_SET_VALUE:
+		printf("PWM_SET_VALUE.\r\n");
+		if (device_type[id] == _PWM) {
+			float fbrightness = (float)val / 100.0f;
+			pwmout_write(&device_pwm[id], fbrightness);
+		}
+		break;
+	case SET_TYPE:
+		printf("SET_TYPE.\r\n");
+		if (val == _GPIO || val == _PWM) {
+			printf("original type: %d   set type: %d.\r\n", device_type[id], val);
+			device_type[id] = val;
+		}
+		break;
+
+	default:
+		break;
+	}
+#endif
+}
+
+#else
+
 
 typedef void (*shell_function_t)(void);
 typedef struct uvc_shell_cmd_s {
@@ -169,21 +400,8 @@ void uvcd_get_extention_cb(void *buf, unsigned int len) //Host get the data from
 	memcpy(buf, (void *)msg_buf, sizeof(msg_buf));
 }
 
+#endif
 
-#define AVMEDIA_TYPE_VIDEO 0
-#define AV_CODEC_ID_H264  1
-#define ARRAY_MODE_LOOP		1
-static array_params_t h264usb_array_params = {
-	.type = AVMEDIA_TYPE_VIDEO,
-	.codec_id = AV_CODEC_ID_H264,
-	.mode = ARRAY_MODE_LOOP,
-	.u = {
-		.v = {
-			.fps    = 25,
-			.h264_nal_size = 4,
-		}
-	}
-};
 
 #if CONFIG_TUNING
 
@@ -246,7 +464,6 @@ static rtsp2_params_t rtsp2_v2_params = {
 	}
 };
 
-
 void example_tuning_rtsp_video_v2_init(void)
 {
 	video_v2_ctx = mm_module_open(&video_module);
@@ -293,8 +510,7 @@ mmf2_video_exmaple_v2_fail:
 
 
 static unsigned char *g_uvcd_iq = NULL;
-#include "ftl_common_api.h"
-#include "../../usb/usb_class/device/class/uvc/tuning-server.h"
+static unsigned char *g_uvcd_sensor = NULL;
 
 void detect_iq_fw(int *iq_bin_start)
 {
@@ -302,21 +518,65 @@ void detect_iq_fw(int *iq_bin_start)
 	tuning_set_iq_heap(iq_bin_start);
 
 	ftl_common_read(TUNING_IQ_FW, (u8 *) &fw_size, sizeof(int));
+	int check = ((fw_size >> 24) & 0xFF);
+	printf("[%s] fw_size: 0x%X   check: 0x%X.\r\n", __FUNCTION__, fw_size, check);
+	fw_size &= 0x00FFFFFF;
 	video_set_uvcd_iq((unsigned int)g_uvcd_iq);
-	if (fw_size > 15 * 1024 && fw_size < TUNING_IQ_MAX_SIZE) {
+	if (fw_size > 10 * 1024 && fw_size < TUNING_IQ_MAX_SIZE) {
 		ftl_common_read(TUNING_IQ_FW, (u8 *) iq_bin_start, sizeof(int) + fw_size);
+		*iq_bin_start &= 0x00FFFFFF;
 
 		printf("[%s] fw_size: %d.\r\n", __FUNCTION__, fw_size);
+		dump_buff((unsigned char *)iq_bin_start, 20 * 16);
 	} else {
 		printf("IQ is not in 0x%06X\r\n", TUNING_IQ_FW);
 	}
 }
+
+void detect_sensor_fw(int *sensor_bin_start)
+{
+	int snr_drv_size = 0;
+
+	ftl_common_read(TUNING_IQ_FW + 240 * 1024 + 28, (u8 *) &snr_drv_size, sizeof(int));
+	int check = ((snr_drv_size >> 24) & 0xFF);
+	printf("[%s] snr_drv_size: 0x%X   check: 0x%X.\r\n", __FUNCTION__, snr_drv_size, check);
+	snr_drv_size &= 0x00FFFFFF;
+	video_set_uvcd_sensor((unsigned int)g_uvcd_sensor);
+	if (snr_drv_size > 512 && snr_drv_size < 16 * 1024 && check == 0xFD) {
+		ftl_common_read(TUNING_IQ_FW + 240 * 1024, (u8 *) sensor_bin_start, 32 + snr_drv_size);
+		*(sensor_bin_start + 7) &= 0x00FFFFFF;
+
+		printf("[%s] snr_drv_size: %d.\r\n", __FUNCTION__, snr_drv_size);
+		dump_buff((unsigned char *)sensor_bin_start, snr_drv_size);
+	} else {
+		printf("Sensor driver is not in 0x%06X\r\n", TUNING_IQ_FW + 240 * 1024);
+	}
+}
 #endif
+
+isp_statis_meta_t _meta;
+static void video_meta_cb(void *parm)
+{
+	video_meta_t *m_parm = (video_meta_t *)parm;
+	unsigned char *ptr = (unsigned char *)m_parm->video_addr;
+	if (m_parm->type == AV_CODEC_ID_MJPEG) {
+		memcpy(ptr + m_parm->meta_offset + VIDEO_JPEG_META_OFFSET, m_parm->isp_meta_data, sizeof(isp_meta_t));
+		memcpy(ptr + m_parm->meta_offset + VIDEO_JPEG_META_OFFSET + sizeof(isp_meta_t), m_parm->isp_statis_meta, sizeof(isp_statis_meta_t));
+		memcpy(&_meta, m_parm->isp_statis_meta, sizeof(isp_statis_meta_t));
+	} else if (m_parm->type == AV_CODEC_ID_H264) {
+		memcpy(ptr + m_parm->meta_offset + VIDEO_H264_META_OFFSET, m_parm->isp_meta_data, sizeof(isp_meta_t));
+		memcpy(ptr + m_parm->meta_offset + VIDEO_H264_META_OFFSET + sizeof(isp_meta_t), m_parm->isp_statis_meta, sizeof(isp_statis_meta_t));
+		memcpy(&_meta, m_parm->isp_statis_meta, sizeof(isp_statis_meta_t));
+	} else if (m_parm->type == AV_CODEC_ID_H265) {
+		//printf("The type is %d\r\n",m_parm->type);
+	} else {
+		//printf("It don't support %d\r\n",m_parm->type);
+	}
+}
+
 void example_media_uvcd_init(void)
 {
-#ifdef UVC_MD
-	int md_roi[6] = {0, 0, 320, 180, 6, 6};
-#endif
+	video_v1_params.meta_size = sizeof(isp_meta_t) + sizeof(isp_statis_meta_t) + VIDEO_META_USER_SIZE; //It add the size of user info to video frame
 
 #if 0//def JXF51_CSTM
 	static gpio_t gpio_power_enable;
@@ -341,9 +601,14 @@ void example_media_uvcd_init(void)
 	tuning_init();
 	if (g_uvcd_iq == NULL) {
 		g_uvcd_iq = malloc(TUNING_IQ_MAX_SIZE);
-		memset(g_uvcd_iq, 0, TUNING_IQ_MAX_SIZE);
-		detect_iq_fw((int *)g_uvcd_iq);
 	}
+	if (g_uvcd_sensor == NULL) {
+		g_uvcd_sensor = malloc(16 * 1024);
+	}
+	memset(g_uvcd_iq, 0, TUNING_IQ_MAX_SIZE);
+	memset(g_uvcd_sensor, 0, 16 * 1024);
+	detect_iq_fw((int *)g_uvcd_iq);
+	detect_sensor_fw((int *)g_uvcd_sensor);
 
 	tuning_set_max_resolution(MAX_W, MAX_H);
 #else
@@ -364,8 +629,12 @@ void example_media_uvcd_init(void)
 	//  struct uvc_dev *uvc_ctx = (struct uvc_dev *)uvcd_ctx->priv;
 
 	if (uvcd_ctx) {
+#if CONFIG_TUNING
+		tuning_set_custom_cmd_cb((int)tuning_customized_set_cmd, (int)tuning_customized_get_cmd, (int)tuning_customized_get_size_cmd);
+#else
 		mm_module_ctrl(uvcd_ctx, CMD_UVCD_CALLBACK_SET, (int)uvcd_set_extention_cb);
 		mm_module_ctrl(uvcd_ctx, CMD_UVCD_CALLBACK_GET, (int)uvcd_get_extention_cb);
+#endif
 	} else {
 		rt_printf("uvcd open fail\n\r");
 		goto mmf2_example_uvcd_fail;
@@ -381,8 +650,9 @@ void example_media_uvcd_init(void)
 	uvc_format_local->format = FORMAT_TYPE_H264;
 	uvc_format_local->height = MAX_H;//video_v1_params.height;
 	uvc_format_local->width = MAX_W;//video_v1_params.width;
+	uvc_format_local->fps = V1_FPS;//video_v1_params.width;
 
-	printf("foramr %d height %d width %d\r\n", uvc_format_local->format, uvc_format_local->height, uvc_format_local->width);
+	printf("foramr %d height %d width %d fps %d\r\n", uvc_format_local->format, uvc_format_local->height, uvc_format_local->width, uvc_format_local->fps);
 
 	video_v1_ctx = mm_module_open(&video_module);
 	if (video_v1_ctx) {
@@ -391,10 +661,8 @@ void example_media_uvcd_init(void)
 		mm_module_ctrl(video_v1_ctx, MM_CMD_SET_QUEUE_LEN, 1);//Default 30
 		mm_module_ctrl(video_v1_ctx, MM_CMD_INIT_QUEUE_ITEMS, MMQI_FLAG_DYNAMIC);
 		mm_module_ctrl(video_v1_ctx, CMD_VIDEO_APPLY, V1_CHANNEL);	// start channel 0
-#ifdef UVC_MD
-		mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_ROI, md_roi);
-		mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_SENSITIVITY, 7);
-		mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_START, 0);
+#if CONFIG_TUNING
+		mm_module_ctrl(video_v1_ctx, CMD_VIDEO_META_CB, (int)video_meta_cb);
 #endif
 	} else {
 		rt_printf("video open fail\n\r");
@@ -440,13 +708,18 @@ void example_media_uvcd_init(void)
 		printf("f:%d h:%d s:%d w:%d\r\n", uvc_format_ptr->format, uvc_format_ptr->height, uvc_format_ptr->state, uvc_format_ptr->width);
 
 		if ((uvc_format_local->format != uvc_format_ptr->format) || (uvc_format_local->width != uvc_format_ptr->width) ||
-			(uvc_format_local->height != uvc_format_ptr->height)) {
-			printf("change f:%d h:%d s:%d w:%d\r\n", uvc_format_ptr->format, uvc_format_ptr->height, uvc_format_ptr->state, uvc_format_ptr->width);
+			(uvc_format_local->height != uvc_format_ptr->height) || (uvc_format_local->fps != uvc_format_ptr->fps)) {
+			printf("change fps:%d f:%d h:%d s:%d w:%d\r\n", uvc_format_ptr->fps, uvc_format_ptr->format, uvc_format_ptr->height, uvc_format_ptr->state,
+				   uvc_format_ptr->width);
 
+			isp_info_t info;
+			info.sensor_width  = uvc_format_ptr->width;
+			info.sensor_height = uvc_format_ptr->height;
+			info.sensor_fps = uvc_format_ptr->fps;
+			video_set_isp_info(&info);
+			video_v1_params.fps = uvc_format_ptr->fps;
+			video_v1_params.gop = video_v1_params.fps * 3;
 			if (uvc_format_ptr->format == FORMAT_TYPE_YUY2) {
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_STOP, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_STREAM_STOP, 0);
 				vTaskDelay(1000);
 				siso_pause(siso_array_uvcd);
@@ -455,17 +728,9 @@ void example_media_uvcd_init(void)
 				video_v1_params.use_static_addr = 1;
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_SET_PARAMS, (int)&video_v1_params);
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_APPLY, V1_CHANNEL);	// start channel 0
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_ROI, md_roi);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_SENSITIVITY, 7);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_START, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_YUV, 2);
 				siso_resume(siso_array_uvcd);
 			} else if (uvc_format_ptr->format == FORMAT_TYPE_NV12) {
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_STOP, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_STREAM_STOP, 0);
 				vTaskDelay(1000);
 				siso_pause(siso_array_uvcd);
@@ -474,17 +739,9 @@ void example_media_uvcd_init(void)
 				video_v1_params.use_static_addr = 1;
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_SET_PARAMS, (int)&video_v1_params);
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_APPLY, V1_CHANNEL);	// start channel 0
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_ROI, md_roi);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_SENSITIVITY, 7);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_START, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_YUV, 2);
 				siso_resume(siso_array_uvcd);
 			} else if (uvc_format_ptr->format == FORMAT_TYPE_H264) {
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_STOP, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_STREAM_STOP, 0);
 				vTaskDelay(1000);
 				printf("siso pause\r\n");
@@ -494,16 +751,8 @@ void example_media_uvcd_init(void)
 				video_v1_params.use_static_addr = 1;
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_SET_PARAMS, (int)&video_v1_params);
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_APPLY, V1_CHANNEL);	// start channel 0
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_ROI, md_roi);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_SENSITIVITY, 7);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_START, 0);
-#endif
 				siso_resume(siso_array_uvcd);
 			} else if (uvc_format_ptr->format == FORMAT_TYPE_MJPEG) {
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_STOP, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_STREAM_STOP, 0);
 				vTaskDelay(1000);
 				siso_pause(siso_array_uvcd);
@@ -512,17 +761,9 @@ void example_media_uvcd_init(void)
 				video_v1_params.use_static_addr = 1;
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_SET_PARAMS, (int)&video_v1_params);
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_APPLY, V1_CHANNEL);	// start channel 0
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_ROI, md_roi);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_SENSITIVITY, 7);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_START, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_SNAPSHOT, 2);
 				siso_resume(siso_array_uvcd);
 			} else if (uvc_format_ptr->format == FORMAT_TYPE_H265) {
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_STOP, 0);
-#endif
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_STREAM_STOP, 0);
 				vTaskDelay(1000);
 				printf("siso pause\r\n");
@@ -532,16 +773,12 @@ void example_media_uvcd_init(void)
 				video_v1_params.use_static_addr = 1;
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_SET_PARAMS, (int)&video_v1_params);
 				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_APPLY, V1_CHANNEL);	// start channel 0
-#ifdef UVC_MD
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_ROI, md_roi);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_SET_SENSITIVITY, 7);
-				mm_module_ctrl(video_v1_ctx, CMD_VIDEO_MD_START, 0);
-#endif
 				siso_resume(siso_array_uvcd);
 			}
 			uvc_format_local->format = uvc_format_ptr->format;
 			uvc_format_local->width = uvc_format_ptr->width;
 			uvc_format_local->height = uvc_format_ptr->height;
+			uvc_format_local->fps = uvc_format_ptr->fps;
 		}
 
 	}
@@ -573,7 +810,10 @@ void example_media_uvcd(void)
 		printf("\r\n example_media_two_source_main: Create Task Error\n");
 	}
 
+
+#if !CONFIG_TUNING
 	if (xTaskCreate(example_shell_cmd_thread, ((const char *)"example_shell_cmd_thread"), 2048, NULL, tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
 		printf("\n\r%s xTaskCreate(example_shell_cmd_thread) failed", __FUNCTION__);
 	}
+#endif
 }

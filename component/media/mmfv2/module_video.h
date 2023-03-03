@@ -58,6 +58,8 @@
 #define CMD_VIDEO_MD_STOP			MM_MODULE_CMD(0x34)
 
 #define CMD_VIDEO_META_CB		    MM_MODULE_CMD(0x35)
+#define CMD_VIDEO_SET_PRIVATE_MASK  MM_MODULE_CMD(0x36)
+
 #define CMD_VIDEO_SET_RATE_CONTROL		MM_MODULE_CMD(0x40)
 #define CMD_VIDEO_GET_CURRENT_BITRATE	MM_MODULE_CMD(0x41)
 #define CMD_VIDEO_GET_REMAIN_QUEUE_LENGTH	MM_MODULE_CMD(0x42)
@@ -106,4 +108,5 @@ void video_voe_release(void);
 void video_set_sensor_id(int SensorName);
 void video_setup_sensor(void *sensor_setup_cb);
 void video_show_fps(int enable);
+int video_get_cb_fps(int chn);
 #endif

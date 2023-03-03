@@ -110,6 +110,20 @@ typedef struct video_param_s {
 	uint32_t level;
 	uint32_t profile;
 	uint32_t cavlc;
+	uint32_t fast_mask_en;
+	struct private_mask_s {
+		uint32_t en;
+		uint32_t grid_mode;
+		uint32_t id;//0~3 only for rect-mode
+		uint32_t color;
+		uint32_t start_x;//2-align
+		uint32_t start_y;//2-align
+		uint32_t w;//16-align when grid-mode
+		uint32_t h;
+		uint32_t cols;//8-align
+		uint32_t rows;
+		uint32_t bitmap[40];
+	} fast_mask;
 } video_params_t;
 
 typedef struct voe_info_s {
@@ -181,6 +195,8 @@ void video_set_debug_level(int value);//Default level -> VIDEO_LOG_MSG
 
 void video_set_uvcd_iq(unsigned int addr);
 
+void video_set_uvcd_sensor(unsigned int addr);
+
 unsigned char *video_get_iq_buf(void);
 
 int video_get_video_sensor_status(void);
@@ -206,6 +222,8 @@ void video_set_fcs_queue_info(int start_time, int end_time);
 void video_get_fcs_queue_info(int *start_time, int *end_time);
 
 int video_get_maxqp(int ch);
+
+void video_set_private_mask(int ch, struct private_mask_s *pmask);
 
 //////////////////////
 #define VOE_NAND_FLASH_OFFSET 0x8000000

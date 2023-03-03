@@ -62,16 +62,23 @@ extern video_boot_stream_t *isp_boot;
 static int(*sensor_setup)(int status, int sensor_id) = NULL;
 //////////////////
 
-#if CONFIG_TUNING
+#define CH_NUM 5
 static int show_fps = 0;
-static int ch_fps[3]   = {0};
-static int cb_tick[3]   = {0};
+static int ch_fps_cnt[CH_NUM]   = {0};
+static int cb_tick[CH_NUM]   = {0};
+static int ch_fps[CH_NUM]   = {0};
 
 void video_show_fps(int enable)
 {
 	show_fps = enable;
 }
-#endif
+int video_get_cb_fps(int chn)
+{
+	if (chn < 0 || chn > 4) {
+		printf("[%s] %d is invalid, chn range is 0~4", chn, __FUNCTION__);
+	}
+	return ch_fps[chn];
+}
 
 void video_rate_control_process(video_ctx_t *ctx)
 {
@@ -366,16 +373,15 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 			output_item->hw_timestamp = enc2out->enc_time;
 			output_item->priv_data = enc2out->enc_slot;//ENC buffer used slot
 
-#if CONFIG_TUNING
 			if (show_fps) {
 				if (xTaskGetTickCount() - cb_tick[enc2out->ch] > 1000) {
 					cb_tick[enc2out->ch] = xTaskGetTickCount();
-					printf("[CH:%d] fps:%d.\r\n", enc2out->ch, ch_fps[enc2out->ch]);
-					ch_fps[enc2out->ch] = 0;
+					printf("[CH:%d] fps:%d.\r\n", enc2out->ch, ch_fps_cnt[enc2out->ch] - 1);
+					ch_fps[enc2out->ch] = ch_fps_cnt[enc2out->ch] - 1;
+					ch_fps_cnt[enc2out->ch] = 0;
 				}
-				ch_fps[enc2out->ch]++;
+				ch_fps_cnt[enc2out->ch]++;
 			}
-#endif
 			if (voe_boot_fsc_status()) {
 				static int queue_len = 0;
 				static int queue_timestamp = 0;
@@ -672,6 +678,11 @@ int video_control(void *p, int cmd, int arg)
 		video_ctrl(ctx->params.stream_id, VIDEO_SET_RCPARAM, (int)&rc_parm);
 	}
 	break;
+	case CMD_VIDEO_SET_PRIVATE_MASK: {
+		struct private_mask_s *pmask = (struct private_mask_s *)arg;
+		video_set_private_mask(ctx->params.stream_id, pmask);
+	}
+	break;
 }
 return 0;
 }
@@ -813,17 +824,17 @@ int video_voe_presetting(int v1_enable, int v1_w, int v1_h, int v1_bps, int v1_s
 	int voe_heap_size = 0;
 	isp_info_t info;
 
-	if (USE_SENSOR == SENSOR_GC4023) {
+	if (USE_SENSOR == SENSOR_GC4653) {
 		info.sensor_width = 2560;
 		info.sensor_height = 1440;
 		info.sensor_fps = 15;
-	} else if (USE_SENSOR == SENSOR_PS5270) {
-		info.sensor_width = 1536;
+	} else if (USE_SENSOR == SENSOR_SC301) {
+		info.sensor_width = 2048;
 		info.sensor_height = 1536;
 		info.sensor_fps = 30;
-	}  else if (USE_SENSOR == SENSOR_PS5420) {
-		info.sensor_width = 1936;
-		info.sensor_height = 1936;
+	} else if (USE_SENSOR == SENSOR_JXF51) {
+		info.sensor_width = 1536;
+		info.sensor_height = 1536;
 		info.sensor_fps = 30;
 	} else {
 		info.sensor_width = 1920;
