@@ -137,6 +137,10 @@ uint32_t rtsp_get_timestamp(struct stream_context *stream_ctx, uint32_t current_
 	if (stream_ctx->use_rtp_tick_inc) {
 		stream_ctx->rtp_timestamp += stream_ctx->statistics.rtp_tick_inc;
 	} else {
+		if (stream_ctx->old_depend_clock_tick == 0) {
+			stream_ctx->old_depend_clock_tick = current_clock_tick;
+			stream_ctx->rtp_timestamp = 0;
+		}
 		delta_clock_tick = current_clock_tick - stream_ctx->old_depend_clock_tick;
 		stream_ctx->old_depend_clock_tick = current_clock_tick;
 		stream_ctx->rtp_timestamp += (delta_clock_tick * rtsp_clock_hz) / RTSP_DEPEND_CLK_HZ;
@@ -1722,6 +1726,10 @@ Redo:
 						}
 						rtsp_ctx->state = RTSP_PLAYING;
 						//here to start rtp/rtcp service
+						//Reset to zero
+						for (int i = 0; i < rtsp_ctx->nb_streams; i++) {
+							rtsp_ctx->stream_ctx[i].old_depend_clock_tick = 0;
+						}
 						rtw_up_sema(&rtsp_ctx->start_rtp_sema);
 #ifdef SUPPORT_RTCP
 						rtw_up_sema(&rtsp_ctx->start_rtcp_sema);
