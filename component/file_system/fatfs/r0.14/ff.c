@@ -1064,7 +1064,8 @@ static FRESULT chk_lock(  /* Check if the file can be accessed */
 	}
 
 	/* The object was opened. Reject any open against writing file and all write mode open */
-	return (acc != 0 || Files[i].ctr == 0x100) ? FR_LOCKED : FR_OK;
+	// return (acc != 0 || Files[i].ctr == 0x100) ? FR_LOCKED : FR_OK;
+	return (acc != 0) ? FR_LOCKED : FR_OK;
 }
 
 
