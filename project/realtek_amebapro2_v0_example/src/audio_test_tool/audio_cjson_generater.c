@@ -251,6 +251,7 @@ static cJSON *CreateAECJSObject(CTAEC_cfg_t aec_cfg)
 		Update_ItemInObject(AECJSObject, "EchoTailLen", cJSON_CreateNumber(aec_cfg.EchoTailLen));
 		Update_ItemInObject(AECJSObject, "CNGEnable", cJSON_CreateNumber(aec_cfg.CNGEnable));
 		Update_ItemInObject(AECJSObject, "PPLevel", cJSON_CreateNumber(aec_cfg.PPLevel));
+		Update_ItemInObject(AECJSObject, "DTControl", cJSON_CreateNumber(aec_cfg.DTControl));
 	}
 	return AECJSObject;
 }
@@ -270,6 +271,7 @@ static cJSON *CreateAGCJSObject(CTAGC_cfg_t agc_cfg)
 		Update_ItemInObject(AGCJSObject, "Threshold", CreateAGCJSArray(agc_cfg.Threshold, 3));
 
 		Update_ItemInObject(AGCJSObject, "KneeWidth", cJSON_CreateNumber(agc_cfg.KneeWidth));
+		Update_ItemInObject(AGCJSObject, "NoiseFloorAdaptEnable", cJSON_CreateNumber(agc_cfg.NoiseFloorAdaptEnable));
 	}
 	return AGCJSObject;
 }

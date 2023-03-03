@@ -46,6 +46,7 @@ RX_cfg_t rx_asp_params = {
 		.Ratio = {50, 50, 50},
 		.Threshold = {20, 30, 40},
 		.KneeWidth = 0,
+		.NoiseFloorAdaptEnable = 1,
 	},
 	.ns_cfg = {
 		.NS_EN = 0,
@@ -65,6 +66,7 @@ TX_cfg_t tx_asp_params = {
 		.Ratio = {50, 50, 50},
 		.Threshold = {20, 30, 40},
 		.KneeWidth = 0,
+		.NoiseFloorAdaptEnable = 1,
 	},
 	.ns_cfg = {
 		.NS_EN = 0,
@@ -893,10 +895,15 @@ void fAUAEC(void *arg)
 	char *argv[MAX_ARGC] = {0};
 #if defined(CONFIG_NEWAEC) && CONFIG_NEWAEC
 	if (!arg) {
-		printf("\n\r[AUAEC] Enable AEC or not: AUAEC=[enable],[level],[sdelay],[CNG_enasble]\n");
+		printf("\n\r[AUAEC] Enable AEC or not: AUAEC=[enable],[PPLevel],[EchoTailLen],[CNGEnable],[DTControl]\n");
 
 		printf("  \r     [enable]=0 or 1\n");
-		printf("  \r     [level]=1~18, higher level more aggressive\n");
+		printf("  \r     [PPLevel]=1~18, higher level more aggressive\n");
+		printf("  \r     [EchoTailLen]=32/64/128, the length of the buffer that the echo cancel process will be rely on, the higher it set, the cpu usage is higher\n");
+		printf("  \r     [PPLevel]=1~18, the fine tune value of AEC, the higher level more aggressive\n");
+		printf("  \r     [CNGEnable]=0/1, enable the comfort noise generate or not\n");
+		printf("  \r     [DTControl]=1~3, the coarse tune value of AEC, the higher level more aggressive\n");
+
 		printf("  \r     OPEN AEC by AUAEC=1,4,64,1\n");
 		printf("  \r     CLOSE AEC by AUAEC=0\n");
 		return;
@@ -909,7 +916,7 @@ void fAUAEC(void *arg)
 			rx_asp_params.aec_cfg.AEC_EN = 0;
 			mm_module_ctrl(audio_save_ctx, CMD_AUDIO_SET_RXASP_PARAM, (int)&rx_asp_params);
 		} else {
-			if (argc >= 5) {
+			if (argc >= 6) {
 				rx_asp_params.aec_cfg.PPLevel = atoi(argv[2]);
 				if (rx_asp_params.aec_cfg.PPLevel < 1 || rx_asp_params.aec_cfg.PPLevel > 18) {
 					rx_asp_params.aec_cfg.PPLevel = 6;
@@ -917,8 +924,10 @@ void fAUAEC(void *arg)
 				}
 				rx_asp_params.aec_cfg.EchoTailLen = atoi(argv[3]);
 				rx_asp_params.aec_cfg.CNGEnable = atoi(argv[4]);
+				rx_asp_params.aec_cfg.DTControl = atoi(argv[5]);
 			}
-			printf("set AEC level: %d, sdelay: %d CNG: %d\r\n", rx_asp_params.aec_cfg.PPLevel, rx_asp_params.aec_cfg.EchoTailLen, rx_asp_params.aec_cfg.CNGEnable);
+			printf("set AEC level: %d, DTControl: %d, sdelay: %d CNG: %d\r\n", rx_asp_params.aec_cfg.PPLevel, rx_asp_params.aec_cfg.DTControl,
+				   rx_asp_params.aec_cfg.EchoTailLen, rx_asp_params.aec_cfg.CNGEnable);
 			rx_asp_params.aec_cfg.AEC_EN = 1;
 			mm_module_ctrl(audio_save_ctx, CMD_AUDIO_SET_RXASP_PARAM, (int)&rx_asp_params);
 		}
@@ -1063,6 +1072,7 @@ void fAUAGC(void *arg)
 		printf("  \r     [AGC_Threshold2] is the parameter determines the third knee of the curve, 0,1…,40 (0,-1,…,-40dBFs)\n");
 		printf("  \r     [AGC_NoiseGateLvl] is the noise floor level, 50,51,…,70 (-50,-51,…,-70dBFs),\n");
 		printf("  \r     [AGC_KneeWidth] is the knee width, 0,1,2,...,10 (0,1,2,…,10dBFs),\n");
+		printf("  \r     [AGC_NoiseFloorAdaptEnable] is to use noise detect on AGC or not, if enable the AGC will ignore some background noise, 0,1,2,...,10 (0,1,2,…,10dBFs),\n");
 
 		printf("  \r     Set extra AGC with attack time and release time by AUAGC=1,1,6,6,20,20,50,10,2,20,30,50\n");
 		printf("  \r     Disable extar AGC by AUAGC=0\n");
@@ -1072,7 +1082,7 @@ void fAUAGC(void *arg)
 	argc = parse_param(arg, argv);
 	if (argc) {
 		if (atoi(argv[1]) == 1) {
-			if (argc >= 14) {
+			if (argc >= 15) {
 				rx_asp_params.agc_cfg.AGCMode = atoi(argv[2]);
 				if (rx_asp_params.agc_cfg.AGCMode < 0 || rx_asp_params.agc_cfg.AGCMode > 2) {
 					rx_asp_params.agc_cfg.AGCMode = 1;
@@ -1121,15 +1131,20 @@ void fAUAGC(void *arg)
 				if (rx_asp_params.agc_cfg.KneeWidth < 0 || rx_asp_params.agc_cfg.KneeWidth > 10) {
 					rx_asp_params.agc_cfg.KneeWidth = 0;
 				}
+				rx_asp_params.agc_cfg.NoiseFloorAdaptEnable = atoi(argv[14]);
+				if (rx_asp_params.agc_cfg.NoiseFloorAdaptEnable < 0 || rx_asp_params.agc_cfg.NoiseFloorAdaptEnable > 1) {
+					rx_asp_params.agc_cfg.NoiseFloorAdaptEnable = 1;
+				}
 				rx_asp_params.agc_cfg.AGC_EN = 1;
 				mm_module_ctrl(audio_save_ctx, CMD_AUDIO_SET_RXASP_PARAM, (int)&rx_asp_params);
 				printf("Enable mic Extra AGC_referenceLvl %d, AGC_ref_threshold %d, AGC_AttackTime %d, AGC_ReleaseTime %d\r\n", rx_asp_params.agc_cfg.ReferenceLvl,
 					   rx_asp_params.agc_cfg.RefThreshold, rx_asp_params.agc_cfg.AttackTime, rx_asp_params.agc_cfg.ReleaseTime);
 				printf("Enable mic Extra AGC_Ratio1 %d, AGC_Ratio2 %d, AGC_Ratio3 %d\r\n", rx_asp_params.agc_cfg.Ratio[0], rx_asp_params.agc_cfg.Ratio[1],
 					   rx_asp_params.agc_cfg.Ratio[2]);
-				printf("Enable mic Extra AGC_Threshold1 %d, AGC_Threshold2 %d, AGC_NoiseGateLvl %d, KneeWidth %d\r\n", rx_asp_params.agc_cfg.Threshold[0],
+				printf("Enable mic Extra AGC_Threshold1 %d, AGC_Threshold2 %d, AGC_NoiseGateLvl %d, KneeWidth %d NoiseFloorAdaptEnable %d\r\n",
+					   rx_asp_params.agc_cfg.Threshold[0],
 					   rx_asp_params.agc_cfg.Threshold[1],
-					   rx_asp_params.agc_cfg.Threshold[2], rx_asp_params.agc_cfg.KneeWidth);
+					   rx_asp_params.agc_cfg.Threshold[2], rx_asp_params.agc_cfg.KneeWidth, rx_asp_params.agc_cfg.NoiseFloorAdaptEnable);
 			} else if (argc >= 13) {
 				rx_asp_params.agc_cfg.AGCMode = atoi(argv[2]);
 				if (rx_asp_params.agc_cfg.AGCMode < 0 || rx_asp_params.agc_cfg.AGCMode > 2) {
@@ -1535,6 +1550,7 @@ void fAUSPAGC(void *arg)
 		printf("  \r     [AGC_Threshold2] is the parameter determines the third knee of the curve, 0,1,…,40 (0,-1,…,-40dBFs)\n");
 		printf("  \r     [AGC_NoiseGateLvl] is the noise floor level, 50,51,…,70 (-50,-51,…,-70dBFs),\n");
 		printf("  \r     [AGC_KneeWidth] is the knee width, 0,1,2,...,10 (0,1,2,…,10dBFs),\n");
+		printf("  \r     [AGC_NoiseFloorAdaptEnable] is to use noise detect on AGC or not, if enable the AGC will ignore some background noise, 0,1,2,...,10 (0,1,2,…,10dBFs),\n");
 
 		printf("  \r     Set extra AGC with attack time and release time by AUSPAGC=1,1,6,6,20,20,50,10,2,20,30,50\n");
 		printf("  \r     Disable extar AGC by AUSPAGC=0\n");
@@ -1545,7 +1561,7 @@ void fAUSPAGC(void *arg)
 
 	if (argc) {
 		if (atoi(argv[1]) == 1) {
-			if (argc >= 14) {
+			if (argc >= 15) {
 				tx_asp_params.agc_cfg.AGCMode = atoi(argv[2]);
 				if (tx_asp_params.agc_cfg.AGCMode < 0 || tx_asp_params.agc_cfg.AGCMode > 2) {
 					tx_asp_params.agc_cfg.AGCMode = 1;
@@ -1594,14 +1610,19 @@ void fAUSPAGC(void *arg)
 				if (tx_asp_params.agc_cfg.KneeWidth < 0 || tx_asp_params.agc_cfg.KneeWidth > 10) {
 					tx_asp_params.agc_cfg.KneeWidth = 0;
 				}
+				tx_asp_params.agc_cfg.NoiseFloorAdaptEnable = atoi(argv[14]);
+				if (tx_asp_params.agc_cfg.NoiseFloorAdaptEnable < 0 || tx_asp_params.agc_cfg.NoiseFloorAdaptEnable > 1) {
+					tx_asp_params.agc_cfg.NoiseFloorAdaptEnable = 1;
+				}
 				tx_asp_params.agc_cfg.AGC_EN = 1;
 				mm_module_ctrl(audio_save_ctx, CMD_AUDIO_SET_TXASP_PARAM, (int)&tx_asp_params);
 				printf("Enable speaker Extra AGC_referenceLvl %d, AGC_ref_threshold %d, AGC_AttackTime %d, AGC_ReleaseTime %d\r\n", tx_asp_params.agc_cfg.ReferenceLvl,
 					   tx_asp_params.agc_cfg.RefThreshold, tx_asp_params.agc_cfg.AttackTime, tx_asp_params.agc_cfg.ReleaseTime);
 				printf("Enable speaker Extra AGC_Ratio1 %d, AGC_Ratio2 %d, AGC_Ratio3 %d\r\n", tx_asp_params.agc_cfg.Ratio[0], tx_asp_params.agc_cfg.Ratio[1],
 					   tx_asp_params.agc_cfg.Ratio[2]);
-				printf("Enable speaker Extra AGC_Threshold1 %d, AGC_Threshold2 %d, AGC_NoiseGateLvl %d, KneeWidth %d\r\n", tx_asp_params.agc_cfg.Threshold[0],
-					   tx_asp_params.agc_cfg.Threshold[1], tx_asp_params.agc_cfg.Threshold[2], tx_asp_params.agc_cfg.KneeWidth);
+				printf("Enable speaker Extra AGC_Threshold1 %d, AGC_Threshold2 %d, AGC_NoiseGateLvl %d, KneeWidth %d, NoiseFloorAdaptEnable %d\r\n",
+					   tx_asp_params.agc_cfg.Threshold[0],
+					   tx_asp_params.agc_cfg.Threshold[1], tx_asp_params.agc_cfg.Threshold[2], tx_asp_params.agc_cfg.KneeWidth, tx_asp_params.agc_cfg.NoiseFloorAdaptEnable);
 			} else if (argc >= 13) {
 				tx_asp_params.agc_cfg.AGCMode = atoi(argv[2]);
 				if (tx_asp_params.agc_cfg.AGCMode < 0 || tx_asp_params.agc_cfg.AGCMode > 2) {
