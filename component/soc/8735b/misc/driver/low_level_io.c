@@ -147,14 +147,18 @@ static void init_write_lock(void)
 void __write_crlf_lock(void)
 {
 #if defined(CRLF_LOCK) && (CRLF_LOCK==1)
-	xSemaphoreTake(__write_lock, (TickType_t) portMAX_DELAY);
+	if (check_in_critical() == 0) {
+		xSemaphoreTake(__write_lock, (TickType_t) portMAX_DELAY);
+	}
 #endif
 }
 
 void __write_crlf_unlock(void)
 {
 #if defined(CRLF_LOCK) && (CRLF_LOCK==1)
-	xSemaphoreGive(__write_lock);
+	if (check_in_critical() == 0) {
+		xSemaphoreGive(__write_lock);
+	}
 #endif
 }
 
