@@ -72,8 +72,8 @@
 #if defined(CONFIG_LWIP_TCP_RESUME) && (CONFIG_LWIP_TCP_RESUME == 1)
 #include <hal_cache.h>
 
-__attribute__((section (".retention.data"))) struct tcp_pcb retention_tcp_pcb;
-__attribute__((section (".retention.data"))) uint8_t retention_have_new_tcp_pcb = 0;
+__attribute__((section (".retention.data"))) struct tcp_pcb retention_tcp_pcb __attribute__((aligned(32)));
+__attribute__((section (".retention.data"))) uint8_t retention_have_new_tcp_pcb __attribute__((aligned(32))) = 0;
 static uint32_t tcp_resume_seqno = 0;
 static uint32_t tcp_resume_ackno = 0;
 #endif

@@ -15,6 +15,7 @@
 //#define VIDEO_OSD				0x17
 #define VIDEO_PRINT_INFO        0x18
 #define VIDEO_DEBUG             0x19
+#define VIDEO_RC_CTRL			0x1a
 
 
 #define VIDEO_HEVC_OUTPUT       0x20

@@ -158,7 +158,12 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 		update_video_offset(enc2out->time_stamp, (uint32_t)ctx);
 		//uint32_t timestamp = xTaskGetTickCount();
 	}
-	uint32_t timestamp = (uint32_t)((int)enc2out->time_stamp + (int)ctx->channel_offset + (int)v_adp->tick_offset[enc2out->ch] + (int)ctx->timestamp_offset);
+	uint32_t timestamp;
+	if (enc2out->codec & CODEC_H264 || enc2out->codec & CODEC_HEVC) {
+		timestamp = (uint32_t)((int)enc2out->time_stamp + (int)ctx->channel_offset + (int)v_adp->tick_offset[enc2out->ch] + (int)ctx->timestamp_offset);
+	} else {
+		timestamp = xTaskGetTickCount();
+	}
 
 	int is_output_ready = 0;
 
@@ -694,6 +699,15 @@ int video_control(void *p, int cmd, int arg)
 	case CMD_VIDEO_SET_PRIVATE_MASK: {
 		struct private_mask_s *pmask = (struct private_mask_s *)arg;
 		video_set_private_mask(ctx->params.stream_id, pmask);
+	}
+	break;
+	case CMD_VIDEO_SET_MULTI_RCCTRL: {
+		int ch = ctx->params.stream_id;
+		rate_ctrl_s *rc_ctrl = (rate_ctrl_s *)arg;
+		video_ctrl(ch, VIDEO_RC_CTRL, arg);
+		if (rc_ctrl->fps) {
+			ctx->rate_ctrl_p.current_framerate = rc_ctrl->fps;
+		}
 	}
 	break;
 }

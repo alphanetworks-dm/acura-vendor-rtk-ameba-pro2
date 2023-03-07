@@ -279,8 +279,8 @@ static video_params_t video_v4_params = {
 #endif
 };
 
-#define MD_COL 16
-#define MD_ROW 16
+#define MD_COL 32
+#define MD_ROW 32
 static md_param_t md_param = {
 	.image_width = NN_WIDTH,
 	.image_height = NN_HEIGHT,
@@ -437,20 +437,8 @@ static int no_motion_count = 0;
 static void md_process(void *md_result)
 {
 	return;
-	int *md_res = (int *) md_result;
-
-	int motion = 0, j, k;
-	for (j = 0; j < MD_ROW; j++) {
-		for (k = 0; k < MD_COL; k++) {
-			//printf("%d ", md_res[j * col + k]);
-			if (md_res[j * MD_COL + k]) {
-				motion = 1;
-			}
-		}
-		//printf("\r\n");
-	}
-	//printf("\r\n");
-	//printf("\r\n");
+	md_result_t *md_res = (md_result_t *) md_result;
+	int motion = md_res->motion_cnt;
 
 	if (motion) {
 		printf("Motion Detected\r\n");
@@ -588,20 +576,9 @@ void mmf2_video_example_joint_test_vipnn_rtsp_mp4_init(void)
 #endif
 
 #if ENABLE_MD
-
-	motion_detect_threshold_t md_thr = {
-		.Tbase = 2,
-		.Tlum = 3
-	};
-	/*char md_mask [MD_COL * MD_ROW] = {0};
-	for (int i = 0; i < MD_COL * MD_ROW; i++) {
-		md_mask[i] = 1;
-	}*/
-
 	md_ctx  = mm_module_open(&md_module);
 	if (md_ctx) {
 		mm_module_ctrl(md_ctx, CMD_MD_SET_PARAMS, (int)&md_param);
-		mm_module_ctrl(md_ctx, CMD_MD_SET_MD_THRESHOLD, (int)&md_thr);
 		//mm_module_ctrl(md_ctx, CMD_MD_SET_MD_MASK, (int)&md_mask);
 #if ENABLE_MD_TRIGGER_YOLO
 		mm_module_ctrl(md_ctx, CMD_MD_SET_DISPPOST, (int)md_process);

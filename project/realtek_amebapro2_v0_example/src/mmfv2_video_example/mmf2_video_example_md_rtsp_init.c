@@ -77,11 +77,10 @@ static rtsp2_params_t rtsp2_v1_params = {
 
 #define MD_CHANNEL 4
 #define MD_RESOLUTION VIDEO_VGA //VIDEO_WVGA
-#define MD_FPS 10
-#define MD_GOP 10
+#define MD_GOP MD_FPS
 #define MD_BPS 1024*1024
-#define MD_COL 16
-#define MD_ROW 16
+#define MD_COL 32
+#define MD_ROW 32
 
 #define MD_TYPE VIDEO_RGB
 
@@ -147,6 +146,7 @@ static mm_siso_t *siso_rgb_md         = NULL;
 // Draw Rect
 //--------------------------------------------
 #define MD_DRAW 1
+#define MD_DRAW_ALL 0
 
 #if MD_DRAW
 #include "osd_render.h"
@@ -154,42 +154,36 @@ static mm_siso_t *siso_rgb_md         = NULL;
 #endif
 static void md_process(void *md_result)
 {
-
-	char *md_res = (char *) md_result;
-	//draw md rect
-	int motion = 0, j, k;
-	int jmin = MD_ROW - 1, jmax = 0;
-	int kmin = MD_COL - 1, kmax = 0;
-	for (j = 0; j < MD_ROW; j++) {
-		for (k = 0; k < MD_COL; k++) {
-			printf("%d ", md_res[j * MD_COL + k]);
-			if (md_res[j * MD_COL + k]) {
-				motion = 1;
-				if (j < jmin) {
-					jmin = j;
-				}
-				if (k < kmin) {
-					kmin = k;
-				}
-				if (j > jmax) {
-					jmax = j;
-				}
-				if (k > kmax) {
-					kmax = k;
-				}
-			}
-		}
-		printf("\r\n");
-	}
-	printf("\r\n\r\n");
+	md_result_t *md_res = (md_result_t *) md_result;
 #if MD_DRAW
-	//draw md region
-
+#if MD_DRAW_ALL
+	for (int i = 0; i < 4; i++) {
+		if (i < md_res->motion_cnt) {
+			int xmin = (int)(md_res->md_pos[i].xmin * RTSP_WIDTH) + 1;
+			int ymin = (int)(md_res->md_pos[i].ymin * RTSP_HEIGHT) + 1;
+			int xmax = (int)(md_res->md_pos[i].xmax * RTSP_WIDTH) - 1;
+			int ymax = (int)(md_res->md_pos[i].ymax * RTSP_HEIGHT) - 1;
+			//printf("%d: x(%d,%d), y(%d,%d)\r\n",i,xmin,xmax,ymin,ymax);
+			canvas_create_bitmap(RTSP_CHANNEL, i, xmin, ymin, xmax, ymax, RTS_OSD2_BLK_FMT_1BPP);
+			canvas_clean_all(RTSP_CHANNEL, i);
+			canvas_set_rect(RTSP_CHANNEL, i, 0, 0, xmax - xmin, ymax - ymin, 3, COLOR_GREEN);
+		} else {
+			canvas_create_bitmap(RTSP_CHANNEL, i, 0, 0, 8, 8, RTS_OSD2_BLK_FMT_1BPP);
+			canvas_clean_all(RTSP_CHANNEL, i);
+		}
+		int ready2update = 0;
+		if (i == 2) {
+			ready2update = 1;
+		}
+		canvas_update(RTSP_CHANNEL, i, ready2update);
+	}
+#else
+	int motion = md_res->motion_cnt;
 	if (motion) {
-		int xmin = (int)(kmin * RTSP_WIDTH / MD_COL) + 1;
-		int ymin = (int)(jmin * RTSP_HEIGHT / MD_ROW) + 1;
-		int xmax = (int)((kmax + 1) * RTSP_WIDTH / MD_COL) - 1;
-		int ymax = (int)((jmax + 1) * RTSP_HEIGHT / MD_ROW) - 1;
+		int xmin = (int)(md_res->md_pos[0].xmin * RTSP_WIDTH) + 1;
+		int ymin = (int)(md_res->md_pos[0].ymin * RTSP_HEIGHT) + 1;
+		int xmax = (int)(md_res->md_pos[0].xmax * RTSP_WIDTH) - 1;
+		int ymax = (int)(md_res->md_pos[0].ymax * RTSP_HEIGHT) - 1;
 		//create bitmap everytime
 		canvas_create_bitmap(RTSP_CHANNEL, 0, xmin, ymin, xmax, ymax, RTS_OSD2_BLK_FMT_1BPP);
 		canvas_clean_all(RTSP_CHANNEL, 0);
@@ -199,6 +193,7 @@ static void md_process(void *md_result)
 		canvas_clean_all(RTSP_CHANNEL, 0);
 	}
 	canvas_update(RTSP_CHANNEL, 0, 1);
+#endif
 #endif
 }
 
@@ -244,23 +239,15 @@ void mmf2_video_example_md_rtsp_init(void)
 		goto mmf2_example_md_rtsp_fail;
 	}
 
-
-	motion_detect_threshold_t md_thr = {
-		.Tbase = 2,
-		.Tlum = 3
-	};
 	char md_mask [MD_COL * MD_ROW] = {0};
 	for (int i = 0; i < MD_COL * MD_ROW; i++) {
 		md_mask[i] = 1;
 	}
-
 	md_ctx  = mm_module_open(&md_module);
 	if (md_ctx) {
 		mm_module_ctrl(md_ctx, CMD_MD_SET_PARAMS, (int)&md_param);
-		mm_module_ctrl(md_ctx, CMD_MD_SET_MD_THRESHOLD, (int)&md_thr);
 		mm_module_ctrl(md_ctx, CMD_MD_SET_MD_MASK, (int)&md_mask);
 		mm_module_ctrl(md_ctx, CMD_MD_SET_DISPPOST, (int)md_process);
-		//mm_module_ctrl(md_ctx, CMD_MD_GET_MD_RESULT, (int)&md_mask);
 	} else {
 		printf("md_ctx open fail\n\r");
 		goto mmf2_example_md_rtsp_fail;

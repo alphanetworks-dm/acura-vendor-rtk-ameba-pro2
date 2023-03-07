@@ -259,6 +259,7 @@ void rtsp_stream_context_init(struct rtsp_context *rtsp_ctx, struct stream_conte
 	stream_ctx->framecontrol.drop_frame_enable = 1;
 	stream_ctx->framecontrol.rtp_drop_threshold = 600;
 	stream_ctx->framecontrol.packet_retry = 3;
+	stream_ctx->time_offset = 0;
 }
 
 void rtsp_stream_context_clear(struct stream_context *stream_ctx)

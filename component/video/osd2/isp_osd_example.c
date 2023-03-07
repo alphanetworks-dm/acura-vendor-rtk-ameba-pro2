@@ -21,6 +21,7 @@ static osd_text_info_st s_txt_info_string;
 static osd_text_info_st s_txt_info_iq_string[6];
 static char string_buf[6][64] = {0};
 static char teststring[] = "RTK-AmebaPro2";
+static char teststring_empty[] = " ";
 
 void iq_update_info(void *arg)
 {
@@ -61,199 +62,127 @@ void iq_update_info(void *arg)
 		vTaskDelay(250);
 	}
 }
+static void init_osd_bitmap_pos(osd_pict_st *bmp_info, int chn_id, uint32_t start_x, uint32_t start_y, uint32_t width, uint32_t height)
+{
+	bmp_info->chn_id = chn_id;
+	bmp_info->osd2.start_x = start_x;
+	bmp_info->osd2.start_y = start_y;
+	bmp_info->osd2.end_x = bmp_info->osd2.start_x + width;
+	bmp_info->osd2.end_y = bmp_info->osd2.start_y + height;
+}
+static void init_osd_bitmap_blk(osd_pict_st *bmp_info, int blk_idx, enum rts_osd2_blk_fmt blk_fmt, uint32_t clr_1bpp)
+{
+	bmp_info->osd2.blk_idx = blk_idx;
+	bmp_info->osd2.blk_fmt = blk_fmt;
+	bmp_info->osd2.color_1bpp = clr_1bpp;//0xAABBGGRR
+}
+static void init_osd_bitmap_buf(osd_pict_st *bmp_info, uint8_t *buf, uint32_t buf_len)
+{
+	bmp_info->osd2.buf = buf;
+	bmp_info->osd2.len = buf_len;
+}
+
+static void init_osd_txt(osd_text_info_st *txt_info, int chn_id, int blk_idx, rt_font_st font, uint32_t rotate, uint32_t start_x, uint32_t start_y, char *str)
+{
+	txt_info->chn_id = chn_id;
+	txt_info->font = font;
+	txt_info->blk_idx = blk_idx;
+	txt_info->rotate = rotate;
+	txt_info->start_x = start_x;
+	txt_info->start_y = start_y;
+	txt_info->str = str;
+}
+
+static rt_font_st font = {
+	.bg_enable		= OSD_TEXT_FONT_BG_ENABLE,
+	.bg_color		= OSD_TEXT_FONT_BG_COLOR,
+	.ch_color		= OSD_TEXT_FONT_CH_COLOR,
+	.block_alpha	= OSD_TEXT_FONT_BLOCK_ALPHA,
+	.h_gap			= OSD_TEXT_FONT_H_GAP,
+	.v_gap			= OSD_TEXT_FONT_V_GAP,
+	.date_fmt		= osd_date_fmt_9,
+	.time_fmt		= osd_time_fmt_24,
+};
 
 extern void rts_osd_task(void *arg);
 osd_pict_st posd2_pic_0, posd2_pic_1, posd2_pic_2;
+void set_info(int ch_id, int txt_w, int txt_h)
+{
+	int ch = ch_id;
+	printf("Text/Logo OSD Test\r\n");
+
+	font.osd_char_w		= txt_w;
+	font.osd_char_h		= txt_h;
+	printf("[osd] Heap available:%d\r\n", xPortGetFreeHeapSize());
+
+	init_osd_txt(&s_txt_info_time, ch, 0, font, OSD_TEXT_ROTATE, 10 + 320 + 50, 10, 0);
+	init_osd_txt(&s_txt_info_date, ch, 1, font, OSD_TEXT_ROTATE, 10, 10, 0);
+	init_osd_txt(&s_txt_info_string, ch, 5, font, RT_ROTATE_90L, 10, 10 + 100, teststring);
+
+	init_osd_bitmap_pos(&posd2_pic_0, ch, 150, 200, PICT0_WIDTH, PICT0_HEIGHT);
+	init_osd_bitmap_blk(&posd2_pic_0, 2, PICT0_BLK_FMT, 0);
+	init_osd_bitmap_buf(&posd2_pic_0, PICT0_NAME, PICT0_SIZE);
+
+	init_osd_bitmap_pos(&posd2_pic_1, ch, 150 + PICT0_WIDTH + 50, 200, PICT1_WIDTH, PICT1_HEIGHT);
+	init_osd_bitmap_blk(&posd2_pic_1, 3, PICT1_BLK_FMT, 0);
+	init_osd_bitmap_buf(&posd2_pic_1, PICT1_NAME, PICT1_SIZE);
+
+	init_osd_bitmap_pos(&posd2_pic_2, ch, 150 + PICT0_WIDTH + 50 + PICT1_WIDTH + 50, 200, PICT2_WIDTH, PICT2_HEIGHT);
+	init_osd_bitmap_blk(&posd2_pic_2, 4, PICT2_BLK_FMT, 0x000000FF);
+	init_osd_bitmap_buf(&posd2_pic_2, PICT2_NAME, PICT2_SIZE);
+
+	rts_osd_set_info(rts_osd2_type_date, &s_txt_info_date);
+	rts_osd_set_info(rts_osd2_type_time, &s_txt_info_time);
+	rts_osd_set_info(rts_osd2_type_pict, &posd2_pic_0);
+	rts_osd_set_info(rts_osd2_type_pict, &posd2_pic_1);
+	rts_osd_set_info(rts_osd2_type_pict, &posd2_pic_2);
+	rts_osd_set_info(rts_osd2_type_text, &s_txt_info_string);
+}
+const int ach_id[5] = {0, 1, 2, 3, 4};
 void example_isp_osd(int idx, int ch_id, int txt_w, int txt_h)
 {
 	int ch = ch_id;
-	rt_font_st font;
 	printf("Text/Logo OSD Test\r\n");
 
-	font.bg_enable		= OSD_TEXT_FONT_BG_ENABLE;
-	font.bg_color		= OSD_TEXT_FONT_BG_COLOR;
-	font.ch_color		= OSD_TEXT_FONT_CH_COLOR;
-	font.block_alpha	= OSD_TEXT_FONT_BLOCK_ALPHA;
-	font.h_gap			= OSD_TEXT_FONT_H_GAP;
-	font.v_gap			= OSD_TEXT_FONT_V_GAP;
-	font.date_fmt		= osd_date_fmt_9;
-	font.time_fmt		= osd_time_fmt_24;
+	font.osd_char_w		= txt_w;
+	font.osd_char_h		= txt_h;
 	if (idx == 0) {
 
 		printf("[osd] Heap available:%d\r\n", xPortGetFreeHeapSize());
 		rts_osd_init(ch_id, txt_w, txt_h, (int)(8.0f * 3600));
 
-
-		posd2_pic_0.chn_id = ch;
-
-		posd2_pic_1.chn_id = ch;
-
-		posd2_pic_2.chn_id = ch;
-
 		if (ch == 0) {
-			s_txt_info_time.font = font;
-			s_txt_info_time.blk_idx = 0;
-			s_txt_info_time.chn_id = ch;
-			s_txt_info_time.rotate = OSD_TEXT_ROTATE;
-			s_txt_info_time.start_x = 10 + 320 + 50;
-			s_txt_info_time.start_y = 10;
+			init_osd_txt(&s_txt_info_time, ch, 0, font, OSD_TEXT_ROTATE, 10 + 320 + 50, 10, 0);
+			init_osd_txt(&s_txt_info_date, ch, 1, font, OSD_TEXT_ROTATE, 10, 10, 0);
+			init_osd_txt(&s_txt_info_string, ch, 5, font, RT_ROTATE_90L, 10, 10 + 100, teststring);
 
-
-			s_txt_info_date.font = font;
-			s_txt_info_date.blk_idx = 1;
-			s_txt_info_date.chn_id = ch;
-			s_txt_info_date.rotate = OSD_TEXT_ROTATE;
-			s_txt_info_date.start_x = 10;
-			s_txt_info_date.start_y = 10;
-
-
-			s_txt_info_string.str = teststring;
-			s_txt_info_string.font = font;
-			s_txt_info_string.blk_idx = 5;
-			s_txt_info_string.chn_id = ch;
-			s_txt_info_string.rotate = RT_ROTATE_90L;
-			s_txt_info_string.start_x = 10;
-			s_txt_info_string.start_y = 10 + 100;
-
-			posd2_pic_0.osd2.blk_idx = 2;
-			posd2_pic_0.osd2.start_x = 150;
-			posd2_pic_0.osd2.start_y = 200;
-			posd2_pic_0.osd2.end_x = posd2_pic_0.osd2.start_x + PICT0_WIDTH;
-			posd2_pic_0.osd2.end_y = posd2_pic_0.osd2.start_y + PICT0_HEIGHT;
-			posd2_pic_0.osd2.blk_fmt = PICT0_BLK_FMT;
-			posd2_pic_0.osd2.buf = PICT0_NAME;
-			posd2_pic_0.osd2.len = PICT0_SIZE;
-
-
-			posd2_pic_1.osd2.blk_idx = 3;
-			posd2_pic_1.osd2.start_x = 150 + PICT0_WIDTH + 50;
-			posd2_pic_1.osd2.start_y = 200;
-			posd2_pic_1.osd2.end_x = posd2_pic_1.osd2.start_x + PICT1_WIDTH;
-			posd2_pic_1.osd2.end_y = posd2_pic_1.osd2.start_y + PICT1_HEIGHT;
-			posd2_pic_1.osd2.blk_fmt = PICT1_BLK_FMT;
-			posd2_pic_1.osd2.buf = PICT1_NAME;
-			posd2_pic_1.osd2.len = PICT1_SIZE;
-
-
-			posd2_pic_2.osd2.blk_idx = 4;
-			posd2_pic_2.osd2.start_x = 150 + PICT0_WIDTH + 50 + PICT1_WIDTH + 50;
-			posd2_pic_2.osd2.start_y = 200;
-			posd2_pic_2.osd2.end_x = posd2_pic_2.osd2.start_x + PICT2_WIDTH;
-			posd2_pic_2.osd2.end_y = posd2_pic_2.osd2.start_y + PICT2_HEIGHT;
-			posd2_pic_2.osd2.blk_fmt = PICT2_BLK_FMT;
-			posd2_pic_2.osd2.color_1bpp = 0x000000FF;//0xAABBGGRR
-			posd2_pic_2.osd2.buf = PICT2_NAME;
-			posd2_pic_2.osd2.len = PICT2_SIZE;
+			init_osd_bitmap_pos(&posd2_pic_0, ch, 150, 200, PICT0_WIDTH, PICT0_HEIGHT);
+			init_osd_bitmap_pos(&posd2_pic_1, ch, 150 + PICT0_WIDTH + 50, 200, PICT1_WIDTH, PICT1_HEIGHT);
+			init_osd_bitmap_pos(&posd2_pic_2, ch, 150 + PICT0_WIDTH + 50 + PICT1_WIDTH + 50, 200, PICT2_WIDTH, PICT2_HEIGHT);
 		} else if (ch == 1) {
-			rts_set_font_char_size(ch_id, txt_w, txt_h, eng_bin_custom, chi_bin_custom);
-			s_txt_info_time.font = font;
-			s_txt_info_time.blk_idx = 0;
-			s_txt_info_time.chn_id = ch;
-			s_txt_info_time.rotate = OSD_TEXT_ROTATE;
-			s_txt_info_time.start_x = 10;
-			s_txt_info_time.start_y = 10;
+			//rts_set_font_char_size(ch_id, txt_w, txt_h, eng_bin_custom, chi_bin_custom);
+			init_osd_txt(&s_txt_info_time, ch, 0, font, OSD_TEXT_ROTATE, 10, 10, 0);
+			init_osd_txt(&s_txt_info_date, ch, 1, font, OSD_TEXT_ROTATE, 10 + 320 + 50, 10, 0);
+			init_osd_txt(&s_txt_info_string, ch, 5, font, RT_ROTATE_90R, 10, 10 + 100, teststring);
 
-
-			s_txt_info_date.font = font;
-			s_txt_info_date.blk_idx = 1;
-			s_txt_info_date.chn_id = ch;
-			s_txt_info_date.rotate = OSD_TEXT_ROTATE;
-			s_txt_info_date.start_x = 10 + 320 + 50;
-			s_txt_info_date.start_y = 10;
-
-
-			s_txt_info_string.str = teststring;
-			s_txt_info_string.font = font;
-			s_txt_info_string.blk_idx = 5;
-			s_txt_info_string.chn_id = ch;
-			s_txt_info_string.rotate = RT_ROTATE_90R;
-			s_txt_info_string.start_x = 10;
-			s_txt_info_string.start_y = 10 + 100;
-
-			posd2_pic_0.osd2.blk_idx = 2;
-			posd2_pic_0.osd2.start_x = 150 + PICT0_WIDTH + 50 + PICT1_WIDTH + 50;
-			posd2_pic_0.osd2.start_y = 200;
-			posd2_pic_0.osd2.end_x = posd2_pic_0.osd2.start_x + PICT0_WIDTH;
-			posd2_pic_0.osd2.end_y = posd2_pic_0.osd2.start_y + PICT0_HEIGHT;
-			posd2_pic_0.osd2.blk_fmt = PICT0_BLK_FMT;
-			posd2_pic_0.osd2.buf = PICT0_NAME;
-			posd2_pic_0.osd2.len = PICT0_SIZE;
-
-
-			posd2_pic_1.osd2.blk_idx = 3;
-			posd2_pic_1.osd2.start_x = 150;
-			posd2_pic_1.osd2.start_y = 300;
-			posd2_pic_1.osd2.end_x = posd2_pic_1.osd2.start_x + PICT1_WIDTH;
-			posd2_pic_1.osd2.end_y = posd2_pic_1.osd2.start_y + PICT1_HEIGHT;
-			posd2_pic_1.osd2.blk_fmt = PICT1_BLK_FMT;
-			posd2_pic_1.osd2.buf = PICT1_NAME;
-			posd2_pic_1.osd2.len = PICT1_SIZE;
-
-
-			posd2_pic_2.osd2.blk_idx = 4;
-			posd2_pic_2.osd2.start_x = 150 + PICT0_WIDTH + 50;
-			posd2_pic_2.osd2.start_y = 400;
-			posd2_pic_2.osd2.end_x = posd2_pic_2.osd2.start_x + PICT2_WIDTH;
-			posd2_pic_2.osd2.end_y = posd2_pic_2.osd2.start_y + PICT2_HEIGHT;
-			posd2_pic_2.osd2.blk_fmt = PICT2_BLK_FMT;
-			posd2_pic_2.osd2.color_1bpp = 0x000000FF;//0xAABBGGRR
-			posd2_pic_2.osd2.buf = PICT2_NAME;
-			posd2_pic_2.osd2.len = PICT2_SIZE;
+			init_osd_bitmap_pos(&posd2_pic_0, ch, 150 + PICT0_WIDTH + 50 + PICT1_WIDTH + 50, 200, PICT0_WIDTH, PICT0_HEIGHT);
+			init_osd_bitmap_pos(&posd2_pic_1, ch, 150, 300, PICT1_WIDTH, PICT1_HEIGHT);
+			init_osd_bitmap_pos(&posd2_pic_2, ch, 150 + PICT0_WIDTH + 50, 400, PICT2_WIDTH, PICT2_HEIGHT);
 		} else if (ch == 2) {
-			s_txt_info_time.font = font;
-			s_txt_info_time.blk_idx = 0;
-			s_txt_info_time.chn_id = ch;
-			s_txt_info_time.rotate = OSD_TEXT_ROTATE;
-			s_txt_info_time.start_x = 10;
-			s_txt_info_time.start_y = 10;
+			init_osd_txt(&s_txt_info_time, ch, 0, font, OSD_TEXT_ROTATE, 10, 10, 0);
+			init_osd_txt(&s_txt_info_date, ch, 1, font, OSD_TEXT_ROTATE, 10 + 320 + 50, 10, 0);
+			init_osd_txt(&s_txt_info_string, ch, 5, font, RT_ROTATE_90R, 10, 10 + 100, teststring);
 
-
-			s_txt_info_date.font = font;
-			s_txt_info_date.blk_idx = 1;
-			s_txt_info_date.chn_id = ch;
-			s_txt_info_date.rotate = OSD_TEXT_ROTATE;
-			s_txt_info_date.start_x = 10 + 320 + 50;
-			s_txt_info_date.start_y = 10;
-
-
-			s_txt_info_string.str = teststring;
-			s_txt_info_string.font = font;
-			s_txt_info_string.blk_idx = 5;
-			s_txt_info_string.chn_id = ch;
-			s_txt_info_string.rotate = RT_ROTATE_90R;
-			s_txt_info_string.start_x = 10;
-			s_txt_info_string.start_y = 10 + 100;
-
-			posd2_pic_0.osd2.blk_idx = 2;
-			posd2_pic_0.osd2.start_x = 150 + PICT0_WIDTH + 50;
-			posd2_pic_0.osd2.start_y = 200;
-			posd2_pic_0.osd2.end_x = posd2_pic_0.osd2.start_x + PICT0_WIDTH;
-			posd2_pic_0.osd2.end_y = posd2_pic_0.osd2.start_y + PICT0_HEIGHT;
-			posd2_pic_0.osd2.blk_fmt = PICT0_BLK_FMT;
-			posd2_pic_0.osd2.buf = PICT0_NAME;
-			posd2_pic_0.osd2.len = PICT0_SIZE;
-
-
-			posd2_pic_1.osd2.blk_idx = 3;
-			posd2_pic_1.osd2.start_x = 150 + PICT0_WIDTH + 50 + PICT1_WIDTH + 50;
-			posd2_pic_1.osd2.start_y = 350;
-			posd2_pic_1.osd2.end_x = posd2_pic_1.osd2.start_x + PICT1_WIDTH;
-			posd2_pic_1.osd2.end_y = posd2_pic_1.osd2.start_y + PICT1_HEIGHT;
-			posd2_pic_1.osd2.blk_fmt = PICT1_BLK_FMT;
-			posd2_pic_1.osd2.buf = PICT1_NAME;
-			posd2_pic_1.osd2.len = PICT1_SIZE;
-
-
-			posd2_pic_2.osd2.blk_idx = 4;
-			posd2_pic_2.osd2.start_x = 150;
-			posd2_pic_2.osd2.start_y = 450;
-			posd2_pic_2.osd2.end_x = posd2_pic_2.osd2.start_x + PICT2_WIDTH;
-			posd2_pic_2.osd2.end_y = posd2_pic_2.osd2.start_y + PICT2_HEIGHT;
-			posd2_pic_2.osd2.blk_fmt = PICT2_BLK_FMT;
-			posd2_pic_2.osd2.color_1bpp = 0x000000FF;//0xAABBGGRR
-			posd2_pic_2.osd2.buf = PICT2_NAME;
-			posd2_pic_2.osd2.len = PICT2_SIZE;
+			init_osd_bitmap_pos(&posd2_pic_0, ch, 150 + PICT0_WIDTH + 50, 200, PICT0_WIDTH, PICT0_HEIGHT);
+			init_osd_bitmap_pos(&posd2_pic_1, ch, 150 + PICT0_WIDTH + 50 + PICT1_WIDTH + 50, 350, PICT1_WIDTH, PICT1_HEIGHT);
+			init_osd_bitmap_pos(&posd2_pic_2, ch, 150, 450, PICT2_WIDTH, PICT2_HEIGHT);
 		}
+		init_osd_bitmap_blk(&posd2_pic_0, 2, PICT0_BLK_FMT, 0);
+		init_osd_bitmap_buf(&posd2_pic_0, PICT0_NAME, PICT0_SIZE);
+		init_osd_bitmap_blk(&posd2_pic_1, 3, PICT1_BLK_FMT, 0);
+		init_osd_bitmap_buf(&posd2_pic_1, PICT1_NAME, PICT1_SIZE);
+		init_osd_bitmap_blk(&posd2_pic_2, 4, PICT2_BLK_FMT, 0x000000FF);
+		init_osd_bitmap_buf(&posd2_pic_2, PICT2_NAME, PICT2_SIZE);
 
 		rts_osd_set_info(rts_osd2_type_date, &s_txt_info_date);
 		rts_osd_set_info(rts_osd2_type_time, &s_txt_info_time);
@@ -264,7 +193,7 @@ void example_isp_osd(int idx, int ch_id, int txt_w, int txt_h)
 
 		printf("[osd] Heap available:%d\r\n", xPortGetFreeHeapSize());
 
-		if (xTaskCreate(rts_osd_task, "OSD", 10 * 1024, NULL, tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
+		if (xTaskCreate(rts_osd_task, "OSD", 10 * 1024, (void *)(ach_id + ch), tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
 			printf("\n\r%s xTaskCreate failed", __FUNCTION__);
 		}
 	} else if (idx == 1) {
@@ -272,23 +201,8 @@ void example_isp_osd(int idx, int ch_id, int txt_w, int txt_h)
 		printf("[osd] Heap available:%d\r\n", xPortGetFreeHeapSize());
 		rts_osd_init(ch_id, txt_w, txt_h, (int)(8.0f * 3600));
 
-		font.bg_enable		= OSD_TEXT_FONT_BG_ENABLE;
-		font.bg_color		= OSD_TEXT_FONT_BG_COLOR;
-		font.ch_color		= OSD_TEXT_FONT_CH_COLOR;
-		font.block_alpha	= OSD_TEXT_FONT_BLOCK_ALPHA;
-		font.h_gap			= OSD_TEXT_FONT_H_GAP;
-		font.v_gap			= OSD_TEXT_FONT_V_GAP;
-		font.date_fmt		= osd_date_fmt_9;
-		font.time_fmt		= osd_time_fmt_24;
-
 		for (int i = 0; i < 6; i++) {
-			s_txt_info_iq_string[i].str = teststring;
-			s_txt_info_iq_string[i].font = font;
-			s_txt_info_iq_string[i].blk_idx = i;
-			s_txt_info_iq_string[i].chn_id = ch;
-			s_txt_info_iq_string[i].rotate = RT_ROTATE_0;
-			s_txt_info_iq_string[i].start_x = 10;
-			s_txt_info_iq_string[i].start_y = 10 + 10 + (txt_h + 5) * i;
+			init_osd_txt(s_txt_info_iq_string + i, ch, i, font, RT_ROTATE_0, 10, 10 + 10 + (txt_h + 5) * i, teststring_empty);
 		}
 
 		rts_osd_set_info(rts_osd2_type_text, &s_txt_info_iq_string[0]);
@@ -300,7 +214,7 @@ void example_isp_osd(int idx, int ch_id, int txt_w, int txt_h)
 
 		printf("[osd] Heap available:%d\r\n", xPortGetFreeHeapSize());
 
-		if (xTaskCreate(rts_osd_task, "OSD", 10 * 1024, NULL, tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
+		if (xTaskCreate(rts_osd_task, "OSD", 10 * 1024, (void *)(ach_id + ch), tskIDLE_PRIORITY + 1, NULL) != pdPASS) {
 			printf("\n\r%s xTaskCreate failed", __FUNCTION__);
 		}
 		if (xTaskCreate(iq_update_info, "osd_iq_update", 10 * 1024, NULL, tskIDLE_PRIORITY + 1, NULL) != pdPASS) {

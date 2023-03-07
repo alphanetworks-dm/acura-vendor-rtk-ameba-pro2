@@ -497,14 +497,16 @@ int wifi_wowlan_set_arpreq_keepalive(u8  powerbit,
 
 #ifdef CONFIG_WOWLAN_IO_WDT
 extern void rtw_set_wdt(u8  gpio,
-						u8  interval);
+						u8  interval,
+						u8	pull_ctrl);
 
 
 int wifi_wowlan_set_wdt(u8  gpio,
-						u8  interval)
+						u8  interval,
+						u8	pull_ctrl)
 {
 	int ret = 0;
-	rtw_set_wdt(gpio, interval);
+	rtw_set_wdt(gpio, interval, pull_ctrl);
 	return ret;
 }
 #endif

@@ -39,6 +39,7 @@
 #define CMD_VIDEO_YUV               MM_MODULE_CMD(0x1c)
 #define CMD_ISP_SET_RAWFMT          MM_MODULE_CMD(0x1d)
 #define CMD_VIDEO_PRINT_INFO        MM_MODULE_CMD(0x1e)
+#define CMD_VIDEO_SET_MULTI_RCCTRL	MM_MODULE_CMD(0x1f)
 
 
 

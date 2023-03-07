@@ -444,7 +444,7 @@ int keepalive_offload_test(void)
 			// replace content
 			//len = ssl_record_len;
 			//printf("ssl_record_len = %d\r\n", ssl_record_len);
-			wifi_set_tcp_keep_alive_offload(network.my_socket, ssl_record, ssl_record_len, interval_ms, resend_ms, 1);
+			wifi_set_tcp_keep_alive_offload(network.my_socket, ssl_record, ssl_record_len, interval_ms, resend_ms, 0);
 
 			// free ssl_record after content is not used anymore
 			if (ssl_record) {
@@ -501,7 +501,7 @@ int keepalive_offload_test(void)
 			// replace content
 			//len = ssl_record_len;
 			//printf("ssl_record_len = %d\r\n", ssl_record_len);
-			wifi_set_tcp_keep_alive_offload(network.my_socket, ssl_record, ssl_record_len, interval_ms, resend_ms, 1);
+			wifi_set_tcp_keep_alive_offload(network.my_socket, ssl_record, ssl_record_len, interval_ms, resend_ms, 0);
 
 			// free ssl_record after content is not used anymore
 			if (ssl_record) {
@@ -509,7 +509,7 @@ int keepalive_offload_test(void)
 			}
 		}
 	} else {
-		wifi_set_tcp_keep_alive_offload(network.my_socket, keepalive_content, sizeof(keepalive_content), interval_ms, resend_ms, 1);
+		wifi_set_tcp_keep_alive_offload(network.my_socket, keepalive_content, sizeof(keepalive_content), interval_ms, resend_ms, 0);
 	}
 
 	return ret;
@@ -642,14 +642,15 @@ u32 bcnearly = 0x1200;
 uint8_t dtimtimeout2 = 5;
 uint8_t rx_bcn_limit2 = 5;
 uint8_t l2_keepalive_period2 = 50;
-uint8_t ps_timeout2 = 30;
-uint8_t ps_retry2 = 10;
+uint8_t ps_timeout2 = 16;
+uint8_t ps_retry2 = 20;
 uint8_t sd_period = 20;
 uint8_t sd_threshold = 6;
 extern u8 new_track;
 extern u8 tracklimit;
 uint8_t wowlan_dtim2 = 10;
-uint8_t bcn_to_limit2 = 20;
+uint8_t bcn_to_limit2 = 10;
+uint8_t arp_keep_alive = 1;
 
 void wowlan_thread(void *param)
 {
@@ -667,7 +668,10 @@ void wowlan_thread(void *param)
 			wifi_set_powersave_mode(0xff, 0); //  Leave LPS mode
 
 			wifi_set_dhcp_offload();
-			wifi_wowlan_set_arpreq_keepalive(1, 0);
+
+			if (arp_keep_alive) {
+				wifi_wowlan_set_arpreq_keepalive(1, 0);
+			}
 
 #if KEEP_ALIVE_FINE_TUNE
 			switch (wowlan_dtim2) {
@@ -681,10 +685,10 @@ void wowlan_thread(void *param)
 				bcn_to_limit2 = 12;
 				break;
 			case 8:
-				bcn_to_limit2 = 16;
+				bcn_to_limit2 = 8;
 				break;
 			case 10:
-				bcn_to_limit2 = 20;
+				bcn_to_limit2 = 10;
 				break;
 			}
 			wifi_wowlan_set_pstune_param(ps_timeout2, ps_retry2, rx_bcn_limit2, dtimtimeout2, bcn_to_limit2);
@@ -692,7 +696,7 @@ void wowlan_thread(void *param)
 #endif
 
 #if WOWLAN_GPIO_WDT
-			wifi_wowlan_set_wdt(2, 2); //gpiof_2, io trigger interval 2 min
+			wifi_wowlan_set_wdt(2, 2, 0); //gpiof_2, io trigger interval 2 min, io pull high and trigger pull low
 #endif
 
 			while (keepalive_offload_test() != 0) {
@@ -1011,6 +1015,11 @@ void fPS(void *arg)
 		} else if (strcmp(argv[1], "ant") == 0) {
 			printf("rltk_set_antenna_diversity\r\n");
 			rltk_set_antenna_diversity(0);
+		} else if (strcmp(argv[1], "arp_keep") == 0) {
+			if (argc == 3) {
+				printf("arp_keep=%02d", atoi(argv[2]));
+				arp_keep_alive = atoi(argv[2]);
+			}
 		}
 
 		else {
@@ -1079,31 +1088,85 @@ void main(void)
 	*************************************** */
 
 	uint8_t wowlan_wake_reason = rtl8735b_wowlan_wake_reason();
+	u32 beacon_cnt = 20;
+	uint8_t pre_dtim = 10;
+	uint16_t tcp_cnt = 0;
+	uint16_t tcp_retry_cnt = 0;
+	uint8_t tcp_retry_avg_cnt = 0;
+	u32 keepalive_time = 0;
 	if (wowlan_wake_reason != 0) {
 		printf("\r\nwake fom wlan: 0x%02X\r\n", wowlan_wake_reason);
 		u32 value32;
 		value32 = HAL_READ32(0x40080000, 0x54);
 		value32 = value32 & 0xFF;
 		printf("beacon recv per 20 = %d\r\n", value32);
+		beacon_cnt = value32;
+
 
 		if (wowlan_wake_reason == 0x6C || wowlan_wake_reason == 0x6D) {
 			uint8_t wowlan_wakeup_pattern = rtl8735b_wowlan_wake_pattern();
 			printf("\r\nwake fom wlan pattern index: 0x%02X\r\n", wowlan_wakeup_pattern);
 		}
 
-		if (wowlan_wake_reason == 0x23 || wowlan_wake_reason == 0x6C || wowlan_wake_reason == 0x6D) {
+		uint8_t *ssl_counter = rtl8735b_read_ssl_conuter_report();
+
+		int i = 0;
+		printf("ssl_counter = \r\n");
+		for (i = 0; i < 30; i++) {
+			printf("%02X", ssl_counter[i]);
+		}
+		printf("\r\n");
+
+		memcpy(&pre_dtim, &ssl_counter[28], 1);
+		memcpy(&tcp_cnt, &ssl_counter[24], 2);
+		memcpy(&tcp_retry_cnt, &ssl_counter[26], 2);
+		tcp_retry_avg_cnt = tcp_retry_cnt / tcp_cnt;
+		keepalive_time = tcp_cnt * interval_ms;
+
+		//smart dtim control
+		//1. wakeup reason : wowlan_wake_reason
+		//2. current dtim : pre_dtim
+		//3. beacon recive rate : beacon_cnt
+		//4. tcp retry avg cnt : tcp_retry_avg_cnt
+		//5. keep alive time: tcp_cnt*interval_ms
+		//dtim adjuest
+		if (wowlan_wake_reason == 0x69 || wowlan_wake_reason == 0x08 ||
+			wowlan_wake_reason == 0x04 ||  wowlan_wake_reason == 0x6F ||
+			wowlan_wake_reason == 0x75) {
+			if (beacon_cnt > 15 && tcp_retry_avg_cnt > 3) {
+				wowlan_dtim2 = 2;
+			} else {
+				wowlan_dtim2 = pre_dtim - 2;
+				if (wowlan_dtim2 < 2) {
+					wowlan_dtim2 = 2;
+				}
+			}
+		} else if (wowlan_wake_reason == 0x6C || wowlan_wake_reason == 0x6D) {
+			if (tcp_cnt * interval_ms > (60 * 60 * 1000)) {
+				if (beacon_cnt > 15 && tcp_retry_avg_cnt < 1) {
+					wowlan_dtim2 = pre_dtim + 2;
+					if (wowlan_dtim2 > 10) {
+						wowlan_dtim2 = 10;
+					}
+				}
+			}
+		}
+
+		printf("--------dtim adjust--------\r\n");
+		printf("wakeup reason = 0x%X\r\n", wowlan_wake_reason);
+		printf("wakeup beacon_cnt = %d\r\n", beacon_cnt);
+		printf("pre_dtim = %d\r\n", pre_dtim);
+		printf("tcp_cnt = %d\r\n", tcp_cnt);
+		printf("tcp_retry_cnt = %d\r\n", tcp_retry_cnt);
+		printf("tcp_retry_avg_cnt = %d\r\n", tcp_retry_avg_cnt);
+
+		if (wowlan_wake_reason == 0x6C || wowlan_wake_reason == 0x6D) {
 			uint32_t packet_len = 0;
 			uint8_t *wakeup_packet = rtl8735b_read_wakeup_packet(&packet_len, wowlan_wake_reason);
 			//uint8_t *wakeup_packet = rtl8735b_read_wakeup_payload(&packet_len, 1);
 
-			uint8_t *ssl_counter = rtl8735b_read_ssl_conuter_report();
 
-			int i = 0;
-			printf("ssl_counter = \r\n");
-			for (i = 0; i < 24; i++) {
-				printf("%02X", ssl_counter[i]);
-			}
-			printf("\r\n");
+
 
 #if 0
 			int i = 0;
@@ -1117,6 +1180,31 @@ void main(void)
 #endif
 
 			//do packet_parser
+			free(wakeup_packet);
+		}
+
+		if (wowlan_wake_reason == 0x08 || wowlan_wake_reason == 0x04) {
+			uint32_t packet_len = 0;
+			uint8_t *wakeup_packet = rtl8735b_read_wakeup_packet(&packet_len, wowlan_wake_reason);
+
+#if 1
+			int i = 0;
+			do {
+				printf("packet content[%d] = 0x%02X%02X%02X%02X\r\n", i, wakeup_packet[i + 3], wakeup_packet[i + 2], wakeup_packet[i + 1], wakeup_packet[i]);
+				if (i >= packet_len) {
+					break;
+				}
+				i += 4;
+			} while (1);
+#endif
+
+			//do packet_parser
+			if ((*wakeup_packet == 0xC0) || (*wakeup_packet == 0xA0)) {
+				uint16_t reason_code = 0x0;
+				memcpy(&reason_code, &wakeup_packet[24], 2);
+				printf("reason_code = 0x%X\r\n", reason_code);
+			}
+
 			free(wakeup_packet);
 		}
 	}

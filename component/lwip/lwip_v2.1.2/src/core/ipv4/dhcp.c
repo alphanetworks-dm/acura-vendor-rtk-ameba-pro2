@@ -2062,4 +2062,85 @@ dhcp_supplied_address(const struct netif *netif)
   return 0;
 }
 
+/* Added by Realtek start */
+#if defined(CONFIG_LWIP_TCP_RESUME) && (CONFIG_LWIP_TCP_RESUME == 1)
+#include <hal_cache.h>
+__attribute__((section (".retention.data"))) struct dhcp retention_dhcp __attribute__((aligned(32)));
+__attribute__((section (".retention.data"))) uint8_t retention_have_new_dhcp __attribute__((aligned(32))) = 0;
+__attribute__((section (".retention.data"))) ip_addr_t retention_dns_servers[DNS_MAX_SERVERS] __attribute__((aligned(32)));
+extern struct netif xnetif[];
+
+int dhcp_retain(void)
+{
+  struct dhcp *dhcp = netif_dhcp_data(&xnetif[0]);
+  if (dhcp == NULL) {
+    return -1;
+  }
+  if (dhcp->state == DHCP_STATE_OFF) {
+    return -1;
+  }
+  if (dhcp->offered_ip_addr.addr == 0) {
+    return -1;
+  }
+  memcpy(&retention_dhcp, dhcp, sizeof(struct dhcp));
+  dcache_clean_invalidate_by_addr((uint32_t *) &retention_dhcp, sizeof(struct dhcp));
+
+  // dns
+  for (int i = 0; i < DNS_MAX_SERVERS; i ++) {
+    memcpy(&retention_dns_servers[i], dns_getserver(i), sizeof(ip_addr_t));
+  }
+  dcache_clean_invalidate_by_addr((uint32_t *) retention_dns_servers, sizeof(retention_dns_servers));
+
+  retention_have_new_dhcp = 1;
+  dcache_clean_invalidate_by_addr((uint32_t *) &retention_have_new_dhcp, sizeof(retention_have_new_dhcp));
+
+  return 0;
+}
+
+int dhcp_resume(void)
+{
+  // dns
+  for (int i = 0; i < DNS_MAX_SERVERS; i ++) {
+    dns_setserver(i, &retention_dns_servers[i]);
+  }
+
+  struct dhcp *dhcp = (struct dhcp *)mem_malloc(sizeof(struct dhcp));
+  if (dhcp == NULL) {
+    printf("\n\r ERROR: mem_malloc \n\r");
+    return -1;
+  }
+  memcpy(dhcp, &retention_dhcp, sizeof(struct dhcp));
+  if (dhcp->state == DHCP_STATE_OFF) {
+    return -1;
+  }
+  if (dhcp->offered_ip_addr.addr == 0) {
+    return -1;
+  }
+  if (dhcp_inc_pcb_refcount() != ERR_OK) { /* ensure DHCP PCB is allocated */
+    return -1;
+  }
+  dhcp->pcb_allocated = 1;
+  dhcp->seconds_elapsed = sys_now();
+  is_fast_dhcp = 1;
+
+  netif_set_client_data(&xnetif[0], LWIP_NETIF_CLIENT_DATA_INDEX_DHCP, dhcp);
+  netif_set_addr(&xnetif[0], &dhcp->offered_ip_addr, &dhcp->offered_sn_mask, &dhcp->offered_gw_addr);
+
+  retention_have_new_dhcp = 0;
+  dcache_clean_invalidate_by_addr((uint32_t *) &retention_have_new_dhcp, sizeof(retention_have_new_dhcp));
+
+  return 0;
+}
+
+uint8_t lwip_check_dhcp_resume(void)
+{
+  if ((retention_have_new_dhcp == 1) && (retention_dhcp.state != DHCP_STATE_OFF) && (retention_dhcp.offered_ip_addr.addr != 0)) {
+    return 1;
+  }
+
+  return 0;
+}
+#endif // defined(CONFIG_LWIP_TCP_RESUME) && (CONFIG_LWIP_TCP_RESUME == 1)
+/* Added by Realtek end */
+
 #endif /* LWIP_IPV4 && LWIP_DHCP */

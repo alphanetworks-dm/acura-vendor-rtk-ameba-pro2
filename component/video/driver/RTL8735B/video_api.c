@@ -425,6 +425,10 @@ int video_ctrl(int ch, int cmd, int arg)
 		hal_video_set_fps(arg, ch);
 	}
 	break;
+	case VIDEO_RC_CTRL: {
+		hal_video_set_rc((rate_ctrl_s *)arg, ch);
+	}
+	break;
 	//type 0:HEVC 1:H264 2:JPEG 3:NV12 4:RGB 5:NV16
 	case VIDEO_HEVC_OUTPUT: {
 		hal_video_out_mode(ch, 0, arg);
