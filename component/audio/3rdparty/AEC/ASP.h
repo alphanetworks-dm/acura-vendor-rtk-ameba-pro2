@@ -44,9 +44,9 @@ typedef struct CTAGC_cfg_s {
 	int16_t Threshold[3]; // Threshold1, Threshold2, NoiseGateLvl
 	int16_t KneeWidth;
 	int16_t NoiseFloorAdaptEnable;
+	int16_t RMSDetectorEnable;
 
 	int16_t Reserve1;
-	int16_t Reserve2;
 } CTAGC_cfg_t;
 
 typedef struct CTAEC_cfg_s {

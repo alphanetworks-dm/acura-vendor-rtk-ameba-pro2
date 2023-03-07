@@ -16,6 +16,7 @@ typedef enum {
 
 typedef struct {
 	int16_t FrameSize ;             // in samples 80 @ 8000Hz and 160 @ 16000Hz
+	int16_t RMSDetectorEnable ;     // '1' - RMS based signal level detector, '0' - peak input level detector
 	int16_t ReferenceLvl ;          // in dBFS 0,3,6,7... 24dB :0->0dB, 3->-3dB, 6->-6dB, 7->-7dB...24->-24dB
 	int16_t RefThreshold ;          //Max reference level threshold (in dBFS) in DRC/Limiter modes.
 	int16_t Ratio1 ;                //Compression ratio for Reference/RefThreshold level
