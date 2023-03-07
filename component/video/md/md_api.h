@@ -60,10 +60,11 @@ typedef struct md_result_s {
 } md_result_t;
 
 typedef struct md_adap_thr_s {
-	int enable;
+	int mode; //0: off, 1: normal mode, 2: raising mode
 	float md_adapt_level;
 	int md_adapt_step;
 	float md_adaptive_threshold[MD_MAX_COL * MD_MAX_ROW];
+	int thr_raise_window[MD_FPS];
 } md_adap_thr_t;
 
 typedef struct group_obj_s {

@@ -65,7 +65,7 @@ int md_handle(void *p, void *input, void *output)
 	if (ctx->motion_detect_ctx->count == 0) {
 		printf("md initial\n\r");
 		md_initial(ctx->motion_detect_ctx, ctx->params);
-		if (ctx->motion_detect_ctx->md_adapt.enable) {
+		if (ctx->motion_detect_ctx->md_adapt.mode) {
 			md_initial_adaptive_threshold(ctx->motion_detect_ctx, ctx->params, 3, 96);
 		}
 	}
@@ -86,7 +86,7 @@ int md_handle(void *p, void *input, void *output)
 			//printf("Motion Detected!\r\n");
 			output_item->timestamp = input_item->timestamp;
 			output_item->size = input_item->size;
-			output_item->type = input_item->type;  //AV_CODEC_ID_MD_RAW;
+			output_item->type = AV_CODEC_ID_MD_RAW;
 			memcpy((unsigned char *)output_item->data_addr, (unsigned char *) input_item->data_addr, input_item->size);
 			return output_item->size;
 		}
@@ -138,8 +138,8 @@ int md_control(void *p, int cmd, int arg)
 	case CMD_MD_SET_DETECT_INTERVAL:
 		ctx->motion_detect_ctx->detect_interval = arg;
 		break;
-	case CMD_MD_EN_ADAPT_THR:
-		ctx->motion_detect_ctx->md_adapt.enable = arg;
+	case CMD_MD_SET_ADAPT_THR_MODE:
+		ctx->motion_detect_ctx->md_adapt.mode = arg;
 		break;
 	case CMD_MD_SET_BGMODE:
 		if (arg >= 0 && arg <= 1) {
