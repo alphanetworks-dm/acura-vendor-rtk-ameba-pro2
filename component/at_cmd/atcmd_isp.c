@@ -754,32 +754,6 @@ EXIT:
 	printf("error at command format\r\n");
 }
 
-void ISP_Enable(unsigned char Value)
-{
-	if(Value == 0)
-	{
-		HAL_WRITE32(0x40300000, 0x00004, 0x00382);	//23a2
-		HAL_WRITE32(0x40300000, 0x00008, 0x03);
-		printf("ISP:Off\r\n");
-	}
-	else if(Value == 1)
-	{
-		HAL_WRITE32(0x40300000, 0x00004, 0x3F3BF);
-		HAL_WRITE32(0x40300000, 0x00008, 0x07);
-		printf("ISP:On\r\n");
-	}
-}
-
-void fATIE(void *arg)
-{
-	volatile int argc;
-	char *argv[MAX_ARGC] = {0};
-	int mode;
-	argc = parse_param(arg, argv);
-	mode = atoi(argv[1]);
-	ISP_Enable(mode);
-}
-
 log_item_t at_isp_items[] = {
 	{"ATIT", fATIT,},
 	{"ATIC", fATIC,},
@@ -788,7 +762,6 @@ log_item_t at_isp_items[] = {
 	{"ATIO", fATIO,},
 	{"ATIR", fATIR,},
 	{"ATIM", fATIM,},
-	{"ATIE", fATIE,},
 };
 
 void at_isp_init(void)

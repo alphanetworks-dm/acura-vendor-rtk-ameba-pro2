@@ -667,12 +667,6 @@ void wowlan_thread(void *param)
 		if (enable_tcp_keep_alive) {
 			wifi_set_powersave_mode(0xff, 0); //  Leave LPS mode
 
-			wifi_set_dhcp_offload();
-
-			if (arp_keep_alive) {
-				wifi_wowlan_set_arpreq_keepalive(1, 0);
-			}
-
 #if KEEP_ALIVE_FINE_TUNE
 			switch (wowlan_dtim2) {
 			case 1:
@@ -701,6 +695,12 @@ void wowlan_thread(void *param)
 
 			while (keepalive_offload_test() != 0) {
 				vTaskDelay(4000);
+			}
+
+			wifi_set_dhcp_offload();
+
+			if (arp_keep_alive) {
+				wifi_wowlan_set_arpreq_keepalive(1, 0);
 			}
 
 //step 4: set wakeup pattern
@@ -798,7 +798,7 @@ void wowlan_thread(void *param)
 			wifi_off();
 			Standby(DSTBY_AON_GPIO | DSTBY_AON_TIMER, SLEEP_DURATION, CLOCK, 0);
 		}
-
+		extern int rltk_set_antenna_diversity(u8 enable);
 		rltk_set_antenna_diversity(0);
 		//tracklimit = 4;
 		printf("start suspend\r\n");
@@ -1014,6 +1014,7 @@ void fPS(void *arg)
 			}
 		} else if (strcmp(argv[1], "ant") == 0) {
 			printf("rltk_set_antenna_diversity\r\n");
+			extern int rltk_set_antenna_diversity(u8 enable);
 			rltk_set_antenna_diversity(0);
 		} else if (strcmp(argv[1], "arp_keep") == 0) {
 			if (argc == 3) {
@@ -1120,8 +1121,10 @@ void main(void)
 		memcpy(&pre_dtim, &ssl_counter[28], 1);
 		memcpy(&tcp_cnt, &ssl_counter[24], 2);
 		memcpy(&tcp_retry_cnt, &ssl_counter[26], 2);
-		tcp_retry_avg_cnt = tcp_retry_cnt / tcp_cnt;
-		keepalive_time = tcp_cnt * interval_ms;
+		if (tcp_cnt && (tcp_cnt > tcp_retry_cnt)) {
+			tcp_retry_avg_cnt = tcp_retry_cnt / (tcp_cnt - tcp_retry_cnt);
+			keepalive_time = (tcp_cnt - tcp_retry_cnt) * interval_ms;
+		}
 
 		//smart dtim control
 		//1. wakeup reason : wowlan_wake_reason
@@ -1130,19 +1133,41 @@ void main(void)
 		//4. tcp retry avg cnt : tcp_retry_avg_cnt
 		//5. keep alive time: tcp_cnt*interval_ms
 		//dtim adjuest
-		if (wowlan_wake_reason == 0x69 || wowlan_wake_reason == 0x08 ||
-			wowlan_wake_reason == 0x04 ||  wowlan_wake_reason == 0x6F ||
-			wowlan_wake_reason == 0x75) {
-			if (beacon_cnt > 15 && tcp_retry_avg_cnt > 3) {
-				wowlan_dtim2 = 2;
-			} else {
+		wowlan_dtim2 = pre_dtim;
+		if (wowlan_wake_reason == 0x08 || wowlan_wake_reason == 0x04) {
+			if (keepalive_time < (60 * 60 * 1000)) {
+				if (beacon_cnt > 15) {
+					wowlan_dtim2 = 1;
+				} else {
+					wowlan_dtim2 = pre_dtim - 2;
+					if (wowlan_dtim2 < 1) {
+						wowlan_dtim2 = 1;
+					}
+				}
+			} else if (keepalive_time < (4 * 60 * 60 * 1000)) {
 				wowlan_dtim2 = pre_dtim - 2;
-				if (wowlan_dtim2 < 2) {
-					wowlan_dtim2 = 2;
+				if (wowlan_dtim2 < 1) {
+					wowlan_dtim2 = 1;
+				}
+			}
+		} else if (wowlan_wake_reason == 0x69 || wowlan_wake_reason == 0x6F || wowlan_wake_reason == 0x75) {
+			if (keepalive_time < (4 * 60 * 60 * 1000)) {
+				if (beacon_cnt > 15 && tcp_retry_avg_cnt > 3) {
+					wowlan_dtim2 = 1;
+				} else {
+					wowlan_dtim2 = pre_dtim - 2;
+					if (wowlan_dtim2 < 1) {
+						wowlan_dtim2 = 1;
+					}
+				}
+			} else {
+				wowlan_dtim2 = pre_dtim + 2;
+				if (wowlan_dtim2 > 8) {
+					wowlan_dtim2 = 8;
 				}
 			}
 		} else if (wowlan_wake_reason == 0x6C || wowlan_wake_reason == 0x6D) {
-			if (tcp_cnt * interval_ms > (60 * 60 * 1000)) {
+			if (keepalive_time  > (4 * 60 * 60 * 1000)) {
 				if (beacon_cnt > 15 && tcp_retry_avg_cnt < 1) {
 					wowlan_dtim2 = pre_dtim + 2;
 					if (wowlan_dtim2 > 10) {

@@ -158,6 +158,9 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 		update_video_offset(enc2out->time_stamp, (uint32_t)ctx);
 		//uint32_t timestamp = xTaskGetTickCount();
 	}
+	// TODO: the isp timestamp correction will consider the setting fps
+	// but the channel on the non H264/H265 will have a serious drop when the system is heavy
+	// only consider the H264/H265 in this version and need fix in the next version
 	uint32_t timestamp;
 	if (enc2out->codec & CODEC_H264 || enc2out->codec & CODEC_HEVC) {
 		timestamp = (uint32_t)((int)enc2out->time_stamp + (int)ctx->channel_offset + (int)v_adp->tick_offset[enc2out->ch] + (int)ctx->timestamp_offset);
@@ -216,14 +219,14 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 
 	if (video_get_stream_info(4)) {
 		if (enc2out->ch == 4) {
-			ch4_last_frame_tick = timestamp;
+			ch4_last_frame_tick = xTaskGetTickCount();
 		}
 
-		if (timestamp - ch4_last_frame_tick > 1000) {
-			//printf("\r\nch4 no response %d ms\r\n", timestamp - ch4_last_frame_tick);
+		if (xTaskGetTickCount() - ch4_last_frame_tick > 1000) {
+			//printf("\r\nch4 no response %d ms\r\n", xTaskGetTickCount() - ch4_last_frame_tick);
 			video_ispbuf_release(4, ch4_recieve_add[0]);
 			video_ispbuf_release(4, ch4_recieve_add[1]);
-			ch4_last_frame_tick = timestamp;
+			ch4_last_frame_tick = xTaskGetTickCount();
 		}
 	}
 
