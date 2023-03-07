@@ -33,6 +33,8 @@ static voe_info_t voe_info = {0};
 static int voe_info_init = 0;
 static int g_max_qp[2] = {0, 0};
 
+extern enc2out_t tm_enc2out_log[3];
+
 #if NONE_FCS_MODE
 static int voe_load_sesnor_init = 0;
 int video_get_fw_isp_info(void);
@@ -146,6 +148,19 @@ void video_set_framerate(int fps)
 
 	hal_video_isp_ctrl(0xF021, 1, &min_fps);
 	hal_video_isp_ctrl(0xF022, 1, &max_fps);
+}
+
+int video_get_buffer_info(int ch, int *enc_size, int *out_buf_size, int *out_rsvd_size)
+{
+	if (ch <= 2) {
+		hal_video_adapter_t *v_adp = hal_video_get_adp();
+		*enc_size = tm_enc2out_log[ch].enc_used;
+		*out_buf_size =	v_adp->cmd[ch]->out_buf_size;
+		*out_rsvd_size = v_adp->cmd[ch]->out_rsvd_size;
+		return (int)&tm_enc2out_log[ch];
+	} else {
+		return 0;
+	}
 }
 
 // Output stream callback function
