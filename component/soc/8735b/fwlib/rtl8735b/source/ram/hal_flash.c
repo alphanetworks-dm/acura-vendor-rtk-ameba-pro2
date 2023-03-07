@@ -885,6 +885,44 @@ void hal_flash_support_new_type(phal_spic_adaptor_t phal_spic_adaptor)
 
 }
 
+void hal_flash_enter_4byte_addr(phal_spic_adaptor_t phal_spic_adaptor)
+{
+	SPIC_TypeDef *spic_dev  = phal_spic_adaptor->spic_dev;
+	u8 flash_size_id = phal_spic_adaptor->flash_id[2];
+	u32 reg_ctrl_value;
+
+	if (flash_size_id < FLASH_ID_4ADDR) {
+		DBG_SPIF_ERR("Flash does not support 4 byte address mode\r\n");
+	}
+
+	spic_tx_cmd_no_check(phal_spic_adaptor, FLASH_CMD_EN4ADDR, 0, 0);
+
+	spic_rtl_disable(spic_dev);
+	reg_ctrl_value = spic_dev->SPIC_AUTO_LENGTH;
+	reg_ctrl_value &= ~SPIC_MASK_AUTO_ADDR_LENGTH;
+	reg_ctrl_value |= (FourBytesLength << SPIC_SHIFT_AUTO_ADDR_LENGTH);
+	spic_dev->SPIC_AUTO_LENGTH = reg_ctrl_value;
+}
+
+void hal_flash_exit_4byte_addr(phal_spic_adaptor_t phal_spic_adaptor)
+{
+	SPIC_TypeDef *spic_dev  = phal_spic_adaptor->spic_dev;
+	u8 flash_size_id = phal_spic_adaptor->flash_id[2];
+	u32 reg_ctrl_value;
+
+	if (flash_size_id < FLASH_ID_4ADDR) {
+		DBG_SPIF_ERR("Flash does not support 4 byte address mode\r\n");
+	}
+
+	spic_rtl_disable(spic_dev);
+	reg_ctrl_value = spic_dev->SPIC_AUTO_LENGTH;
+	reg_ctrl_value &= ~SPIC_MASK_AUTO_ADDR_LENGTH;
+	reg_ctrl_value |= (ThreeBytesLength << SPIC_SHIFT_AUTO_ADDR_LENGTH);
+	spic_dev->SPIC_AUTO_LENGTH = reg_ctrl_value;
+
+	spic_tx_cmd_no_check(phal_spic_adaptor, FLASH_CMD_EXIT4ADDR, 0, 0);
+}
+
 /** *@} */ /* End of group hs_hal_flash_ram_func */
 
 /** *@} */ /* End of group hs_hal_flash */
