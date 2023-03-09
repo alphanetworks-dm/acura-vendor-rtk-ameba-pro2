@@ -134,6 +134,12 @@ void video_rate_control_moniter_sample_rate(video_ctx_t *ctx, uint32_t frame_siz
 		}
 	}
 }
+static void update_video_offset(uint32_t isp_timestamp, uint32_t arg)
+{
+	video_ctx_t *ctx = (video_ctx_t *)arg;
+	ctx->channel_offset = (int)xTaskGetTickCount() - (int)isp_timestamp;
+}
+
 static int ch4_recieve_add[2] = {0};
 static uint32_t ch4_last_frame_tick = 0;
 void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
@@ -147,7 +153,21 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 	mm_context_t *mctx = (mm_context_t *)ctx->parent;
 	mm_queue_item_t *output_item;
 
-	uint32_t timestamp = xTaskGetTickCount() + ctx->timestamp_offset;
+	if (!ctx->offset_set) {
+		ctx->offset_set = 1;
+		update_video_offset(enc2out->time_stamp, (uint32_t)ctx);
+		//uint32_t timestamp = xTaskGetTickCount();
+	}
+	// TODO: the isp timestamp correction will consider the setting fps
+	// but the channel on the non H264/H265 will have a serious drop when the system is heavy
+	// only consider the H264/H265 in this version and need fix in the next version
+	uint32_t timestamp;
+	if (enc2out->codec & CODEC_H264 || enc2out->codec & CODEC_HEVC) {
+		timestamp = (uint32_t)((int)enc2out->time_stamp + (int)ctx->channel_offset + (int)v_adp->tick_offset[enc2out->ch] + (int)ctx->timestamp_offset);
+	} else {
+		timestamp = xTaskGetTickCount();
+	}
+
 	int is_output_ready = 0;
 
 #if MMF_VIDEO_DEBUG
@@ -199,14 +219,14 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 
 	if (video_get_stream_info(4)) {
 		if (enc2out->ch == 4) {
-			ch4_last_frame_tick = timestamp;
+			ch4_last_frame_tick = xTaskGetTickCount();
 		}
 
-		if (timestamp - ch4_last_frame_tick > 1000) {
-			//printf("\r\nch4 no response %d ms\r\n", timestamp - ch4_last_frame_tick);
+		if (xTaskGetTickCount() - ch4_last_frame_tick > 1000) {
+			//printf("\r\nch4 no response %d ms\r\n", xTaskGetTickCount() - ch4_last_frame_tick);
 			video_ispbuf_release(4, ch4_recieve_add[0]);
 			video_ispbuf_release(4, ch4_recieve_add[1]);
-			ch4_last_frame_tick = timestamp;
+			ch4_last_frame_tick = xTaskGetTickCount();
 		}
 	}
 
@@ -251,7 +271,7 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 				}
 				output_item->size = enc2out->jpg_len;
 				output_item->timestamp = timestamp;
-				output_item->hw_timestamp = enc2out->enc_time;
+				output_item->hw_timestamp = enc2out->time_stamp;
 				output_item->type = AV_CODEC_ID_MJPEG;
 				output_item->priv_data = enc2out->jpg_slot;//JPEG buffer used slot
 
@@ -369,8 +389,8 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 				}
 			}
 
-			output_item->timestamp = timestamp;
-			output_item->hw_timestamp = enc2out->enc_time;
+			output_item->timestamp = timestamp; //rtp timestamp
+			output_item->hw_timestamp = enc2out->time_stamp;
 			output_item->priv_data = enc2out->enc_slot;//ENC buffer used slot
 
 			if (show_fps) {
@@ -405,6 +425,7 @@ void video_frame_complete_cb(void *param1, void  *param2, uint32_t arg)
 					queue_len = queue_len - 1;
 				}
 			}
+			//printf("Video TS => KM: %d en %d, TM: %d, diff: %d\r\n", enc2out->time_stamp, enc2out->enc_time, output_item->timestamp, enc2out->time_stamp - output_item->timestamp);
 			if (xQueueSend(mctx->output_ready, (void *)&output_item, 0) != pdTRUE) {
 				if (enc2out->codec <= CODEC_JPEG) {
 					video_encbuf_release(enc2out->ch, enc2out->codec, output_item->size);
@@ -681,6 +702,15 @@ int video_control(void *p, int cmd, int arg)
 	case CMD_VIDEO_SET_PRIVATE_MASK: {
 		struct private_mask_s *pmask = (struct private_mask_s *)arg;
 		video_set_private_mask(ctx->params.stream_id, pmask);
+	}
+	break;
+	case CMD_VIDEO_SET_MULTI_RCCTRL: {
+		int ch = ctx->params.stream_id;
+		rate_ctrl_s *rc_ctrl = (rate_ctrl_s *)arg;
+		video_ctrl(ch, VIDEO_RC_CTRL, arg);
+		if (rc_ctrl->fps) {
+			ctx->rate_ctrl_p.current_framerate = rc_ctrl->fps;
+		}
 	}
 	break;
 }

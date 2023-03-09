@@ -1,8 +1,8 @@
 #include "power_mode_api.h"
 #include <string.h>
 
-__attribute__((section(".retention.data"))) uint16_t retention_magic;
-__attribute__((section(".retention.data"))) uint32_t retention_count;
+__attribute__((section(".retention.data"))) uint16_t retention_magic __attribute__((aligned(32)));
+__attribute__((section(".retention.data"))) uint32_t retention_count __attribute__((aligned(32)));
 
 int main(void)
 {
@@ -22,7 +22,7 @@ int main(void)
 
 	// SLP_AON_TIMER to wakeup after 5s
 	// SLP_GTIMER for SRAM retention
-	HAL_WRITE32(0x40009000, 0x18, 0xB5E36001);//4MHz power on
+	HAL_WRITE32(0x40009000, 0x18, 0x1 | HAL_READ32(0x40009000, 0x18)); //SWR 1.35V
 	Standby(SLP_AON_TIMER | SLP_GTIMER, 5000000 /* 5s */, 0 /* CLOCK */, 1 /* SRAM retention */);
 
 	while (1);

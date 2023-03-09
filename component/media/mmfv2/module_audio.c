@@ -99,6 +99,7 @@ static uint8_t proc_pretx_buf[AUDIO_DMA_PAGE_SIZE];
 
 typedef struct pcm_rx_s {
 	uint32_t timestamp;
+	uint32_t hw_timestamp;
 	uint8_t  pcm_data[AUDIO_DMA_PAGE_SIZE * 2];	//reserve for stereo buffer
 } pcm_rx_t;
 
@@ -315,12 +316,13 @@ static void audio_rx_complete(uint32_t arg, uint8_t *pbuf)
 {
 	audio_ctx_t *ctx = (audio_ctx_t *)arg;
 	audio_t *obj = (audio_t *)ctx->audio;
-	uint32_t audio_rx_ts = xTaskGetTickCountFromISR() + ctx->audio_timestamp_offset;
+	uint32_t rx_ts = xTaskGetTickCountFromISR();
 	static int rx_index = 0;
 	int is_output_ready = 0;
 	// set timestamp to 1st sample
 	// AUDIO_DBG_INFO("rx timestamp = %d\r\n", audio_rx_ts);
-	audio_rx_ts -= 1000 * (AUDIO_DMA_PAGE_SIZE / ctx->word_length) / ctx->sample_rate;
+	rx_ts -= 1000 * (AUDIO_DMA_PAGE_SIZE / ctx->word_length) / ctx->sample_rate;
+	uint32_t audio_rx_ts = rx_ts + ctx->audio_timestamp_offset;
 
 	// disable the first frame to prevent "pop" sound
 	if (ctx->rx_first_frame) {
@@ -387,6 +389,7 @@ static void audio_rx_complete(uint32_t arg, uint8_t *pbuf)
 					memset((void *)dummy_output_item->data_addr, 0, RX_PAGE_SIZE);
 					dummy_output_item->size = RX_PAGE_SIZE;
 					dummy_output_item->timestamp = audio_dummy_ts;
+					dummy_output_item->hw_timestamp = rx_ts;
 					dummy_output_item->type = AV_CODEC_ID_PCM_RAW;
 					xQueueSendFromISR(dummy_mctx->output_ready, (void *)&dummy_output_item, &xHigherPriorityTaskWoken);
 				}
@@ -424,12 +427,14 @@ static void audio_rx_complete(uint32_t arg, uint8_t *pbuf)
 			} else {
 				last_rx_ts = audio_rx_ts;
 				rx_irq_buf.timestamp = audio_rx_ts;
+				rx_irq_buf.hw_timestamp = rx_ts;
 			}
 		} else
 #endif
 		{
 			last_rx_ts = audio_rx_ts;
 			rx_irq_buf.timestamp = audio_rx_ts;
+			rx_irq_buf.hw_timestamp = rx_ts;
 			if (ctx->params.use_mic_type == USE_AUDIO_RIGHT_DMIC) {
 				memcpy((void *)(rx_irq_buf.pcm_data + AUDIO_DMA_PAGE_SIZE), (void *)pbuf, RX_PAGE_SIZE);
 			} else {
@@ -471,6 +476,7 @@ static void audio_rx_complete(uint32_t arg, uint8_t *pbuf)
 					}
 					output_item->size = RX_PAGE_SIZE;
 					output_item->timestamp = audio_rx_ts;
+					output_item->hw_timestamp = rx_ts;
 					output_item->type = AV_CODEC_ID_PCM_RAW;
 
 					//count the audio send/drop frame
@@ -492,6 +498,7 @@ static void audio_rx_complete(uint32_t arg, uint8_t *pbuf)
 				memcpy((void *)output_item->data_addr, (void *)dma_rxdata_buf_lr, RX_PAGE_SIZE);
 				output_item->size = RX_PAGE_SIZE;
 				output_item->timestamp = audio_rx_ts;
+				output_item->hw_timestamp = rx_ts;
 				output_item->type = AV_CODEC_ID_PCM_RAW;
 				//count the audio send/drop frame
 				ctx->audio_frame++;
@@ -671,7 +678,7 @@ static void audio_rx_handle_thread(void *param)
 		} else { //USE_AUDIO_LEFT_DMIC or USE_AUDIO_AMIC
 			dma_rxdata_proc_buf = dma_rxdata_buf_l;
 		}
-		uint32_t audio_rx_ts = proc_rx_buf.timestamp;
+		//uint32_t audio_rx_ts = proc_rx_buf.timestamp;
 		//uint32_t audio_rx_ts = xTaskGetTickCount();
 		memcpy(proc_tx_buf, last_tx_buf, AUDIO_DMA_PAGE_SIZE);
 #if defined(SAVE_AUDIO_DATA) && SAVE_AUDIO_DATA
@@ -808,7 +815,8 @@ static void audio_rx_handle_thread(void *param)
 				}
 			}
 			output_item->size = RX_PAGE_SIZE;
-			output_item->timestamp = audio_rx_ts;
+			output_item->timestamp = proc_rx_buf.timestamp;
+			output_item->hw_timestamp = proc_rx_buf.hw_timestamp;
 			output_item->type = AV_CODEC_ID_PCM_RAW;
 			xQueueSend(mctx->output_ready, (void *)&output_item, 0xFFFFFFFF);
 		}

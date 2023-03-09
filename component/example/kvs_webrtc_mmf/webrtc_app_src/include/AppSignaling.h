@@ -72,6 +72,11 @@ STATUS app_signaling_queryServer(PAppSignaling pAppSignaling, PRtcIceServer pIce
  * @return STATUS code of the execution. STATUS_SUCCESS on success
  */
 STATUS app_signaling_connect(PAppSignaling pAppSignaling);
+STATUS app_signaling_fetch(PAppSignaling pAppSignaling);
+
+STATUS app_signaling_create(PAppSignaling pAppSignaling);
+
+STATUS app_signaling_shutdown(PAppSignaling pAppSignaling);
 /**
  * @brief   connect to the signaling server
  *

@@ -39,6 +39,7 @@
 #define CMD_VIDEO_YUV               MM_MODULE_CMD(0x1c)
 #define CMD_ISP_SET_RAWFMT          MM_MODULE_CMD(0x1d)
 #define CMD_VIDEO_PRINT_INFO        MM_MODULE_CMD(0x1e)
+#define CMD_VIDEO_SET_MULTI_RCCTRL	MM_MODULE_CMD(0x1f)
 
 
 
@@ -94,6 +95,9 @@ typedef struct video_ctx_s {
 	uint32_t timestamp_offset;
 	void (*meta_cb)(void *);
 	rate_ctrl_param_t rate_ctrl_p;
+	int channel_offset;
+	int offset_set;
+	int output_frames;
 } video_ctx_t;
 
 extern mm_module_t video_module;

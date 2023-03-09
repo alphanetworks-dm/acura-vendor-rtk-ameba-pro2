@@ -279,6 +279,9 @@ int rtsp2_control(void *p, int cmd, int arg)
 	case CMD_RTSP2_SET_PACKET_RETRY:
 		set_packet_retry(stream_ctx, arg);
 		break;
+	case CMD_CMD_RTSP2_SET_TIME_OFFSET:
+		stream_ctx->time_offset = arg;
+		break;
 	default:
 		break;
 	}

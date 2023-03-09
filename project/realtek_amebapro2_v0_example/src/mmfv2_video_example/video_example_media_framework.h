@@ -70,6 +70,8 @@ void mmf2_video_example_audio_vipnn_init(void);
 
 void mmf2_video_example_md_rtsp_init(void);
 
+void mmf2_video_example_bayercap_rtsp_init(void);
+
 void mmf2_video_example_md_nn_rtsp_init(void);
 
 void mmf2_video_example_joint_test_rtsp_mp4_init_fcs(void);

@@ -468,9 +468,11 @@ int __wrap_mkdir(const char *pathname, mode_t mode)
 	} else {
 		snprintf(name, sizeof(name), "%s", pathname + prefix_len);
 	}
+#if defined(ESSENTIAL2)
 	int len = strlen(name);
 	if (name[len-1] == '/')		// ESSENTIAL2:mkdir does not like '/' ending.
 		name[len-1] = '\0';
+#endif
 	//printf("name %s\r\n",name);
 	ret = vfs.drv[vfs_id]->mkdir(name);
 	return ret;
@@ -531,8 +533,10 @@ int __wrap_stat(const char *path, struct stat *buf)
 	return ret;
 }
 
+#if defined(ESSENTIAL2)
 void __wrap_sync(void)
 {
 	// ESSENTIAL2: I don't think there is anything to do
 	return;
 }
+#endif

@@ -473,7 +473,6 @@ int fcs_snapshot_cb(uint32_t jpeg_addr, uint32_t jpeg_len)
 #define FCS_AV_SYNC 1
 void fcs_avsync(bool enable)
 {
-	memcpy((void *)&audio_params, (void *)&default_audio_params, sizeof(audio_params_t));
 	if (enable) {
 		//get the fcs time need to what video first frame
 		int fcs_video_starttime = 0;
@@ -580,6 +579,8 @@ void mmf2_video_example_joint_test_rtsp_mp4_init_fcs(void)
 		}
 	}
 
+	memcpy((void *)&audio_params, (void *)&default_audio_params, sizeof(audio_params_t));
+
 	if (isp_fcs_info->fcs_status) {
 		//enable the setting of fcs avsync
 		fcs_avsync(FCS_AV_SYNC);
@@ -630,10 +631,12 @@ void mmf2_video_example_joint_test_rtsp_mp4_init_fcs(void)
 	if (rtsp2_v2_ctx) {
 		mm_module_ctrl(rtsp2_v2_ctx, CMD_RTSP2_SELECT_STREAM, 0);
 		mm_module_ctrl(rtsp2_v2_ctx, CMD_RTSP2_SET_PARAMS, (int)&rtsp2_v2_params);
+		mm_module_ctrl(rtsp2_v2_ctx, CMD_CMD_RTSP2_SET_TIME_OFFSET, MODULE_TIMESTAMP_OFFSET);
 		mm_module_ctrl(rtsp2_v2_ctx, CMD_RTSP2_SET_APPLY, 0);
 
 		mm_module_ctrl(rtsp2_v2_ctx, CMD_RTSP2_SELECT_STREAM, 1);
 		mm_module_ctrl(rtsp2_v2_ctx, CMD_RTSP2_SET_PARAMS, (int)&rtsp2_a_params);
+		mm_module_ctrl(rtsp2_v2_ctx, CMD_CMD_RTSP2_SET_TIME_OFFSET, MODULE_TIMESTAMP_OFFSET);
 		mm_module_ctrl(rtsp2_v2_ctx, CMD_RTSP2_SET_APPLY, 0);
 		mm_module_ctrl(rtsp2_v2_ctx, CMD_RTSP2_SET_STREAMMING, ON);
 	} else {

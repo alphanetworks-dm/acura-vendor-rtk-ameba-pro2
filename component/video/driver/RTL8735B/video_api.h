@@ -15,6 +15,7 @@
 //#define VIDEO_OSD				0x17
 #define VIDEO_PRINT_INFO        0x18
 #define VIDEO_DEBUG             0x19
+#define VIDEO_RC_CTRL			0x1a
 
 
 #define VIDEO_HEVC_OUTPUT       0x20
@@ -224,6 +225,8 @@ void video_get_fcs_queue_info(int *start_time, int *end_time);
 int video_get_maxqp(int ch);
 
 void video_set_private_mask(int ch, struct private_mask_s *pmask);
+
+int video_get_buffer_info(int ch, int *enc_size, int *out_buf_size, int *out_rsvd_size);
 
 //////////////////////
 #define VOE_NAND_FLASH_OFFSET 0x8000000

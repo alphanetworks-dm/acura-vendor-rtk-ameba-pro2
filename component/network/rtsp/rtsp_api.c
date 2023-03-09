@@ -259,6 +259,7 @@ void rtsp_stream_context_init(struct rtsp_context *rtsp_ctx, struct stream_conte
 	stream_ctx->framecontrol.drop_frame_enable = 1;
 	stream_ctx->framecontrol.rtp_drop_threshold = 600;
 	stream_ctx->framecontrol.packet_retry = 3;
+	stream_ctx->time_offset = 0;
 }
 
 void rtsp_stream_context_clear(struct stream_context *stream_ctx)
@@ -884,7 +885,8 @@ static void create_sdp_a_string(char *string, struct stream_context *s, void *ex
 				"a=ptime:20" CRLF \
 				"a=maxptime:60" CRLF \
 				"a=control:streamid=%d" CRLF \
-				, (s->codec->pt + s->stream_id), s->codec->clock_rate, s->codec->audio_channels, (s->codec->pt + s->stream_id), s->samplerate, s->channel, s->stream_id);
+				, (s->codec->pt + s->stream_id), s->codec->clock_rate, s->channel/*s->codec->audio_channels*/, (s->codec->pt + s->stream_id), s->samplerate, s->channel,
+				s->stream_id);
 		//printf("OPUS\r\n%s\r\n",string);
 
 		/*

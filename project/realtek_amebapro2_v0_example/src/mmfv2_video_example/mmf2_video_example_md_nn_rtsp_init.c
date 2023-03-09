@@ -94,8 +94,8 @@ static rtsp2_params_t rtsp2_v1_params = {
 #define NN_GOP NN_FPS
 #define NN_BPS 1024*1024 //don't care for NN
 #define NN_TYPE VIDEO_RGB
-#define MD_COL 16
-#define MD_ROW 16
+#define MD_COL 32
+#define MD_ROW 32
 
 #define NN_MODEL_OBJ   yolov4_tiny
 #define NN_WIDTH	576 //416
@@ -245,20 +245,8 @@ static void nn_set_object(void *p, void *img_param)
 static int no_motion_count = 0;
 static void md_process(void *md_result)
 {
-	char *md_res = (char *) md_result;
-
-	int motion = 0, j, k;
-	for (j = 0; j < MD_ROW; j++) {
-		for (k = 0; k < MD_COL; k++) {
-			//printf("%d ", md_res[j * MD_COL + k]);
-			if (md_res[j * MD_COL + k]) {
-				motion = 1;
-			}
-		}
-		//printf("\r\n");
-	}
-	//printf("\r\n");
-	//printf("\r\n");
+	md_result_t *md_res = (md_result_t *) md_result;
+	int motion = md_res->motion_cnt;
 
 	if (motion) {
 		printf("Motion Detected\r\n");
@@ -316,10 +304,6 @@ void mmf2_video_example_md_nn_rtsp_init(void)
 		goto mmf2_example_md_rtsp_fail;
 	}
 
-	motion_detect_threshold_t md_thr = {
-		.Tbase = 2,
-		.Tlum = 3
-	};
 	char md_mask [MD_COL * MD_ROW] = {0};
 	for (int i = 0; i < MD_COL * MD_ROW; i++) {
 		md_mask[i] = 1;
@@ -327,7 +311,6 @@ void mmf2_video_example_md_nn_rtsp_init(void)
 	md_ctx  = mm_module_open(&md_module);
 	if (md_ctx) {
 		mm_module_ctrl(md_ctx, CMD_MD_SET_PARAMS, (int)&md_param);
-		mm_module_ctrl(md_ctx, CMD_MD_SET_MD_THRESHOLD, (int)&md_thr);
 		mm_module_ctrl(md_ctx, CMD_MD_SET_MD_MASK, (int)&md_mask);
 		mm_module_ctrl(md_ctx, CMD_MD_SET_DISPPOST, (int)md_process);
 		mm_module_ctrl(md_ctx, CMD_MD_SET_TRIG_BLK, 3); //md triggered when at least 3 motion block triggered

@@ -47,6 +47,7 @@ include(./libqrcode.cmake OPTIONAL)
 include(./libfmp4.cmake OPTIONAL)
 include(./liblightsensor.cmake OPTIONAL)
 include(./libispfeature.cmake OPTIONAL)
+include(./libmd.cmake OPTIONAL)
 
 if(BUILD_LIB)
 	message(STATUS "build libraries")
@@ -786,7 +787,7 @@ elseif(DEFINED VIDEO_EXAMPLE AND VIDEO_EXAMPLE)
     message(STATUS "Build VIDEO_EXAMPLE project")
     include(${prj_root}/src/mmfv2_video_example/video_example_media_framework.cmake)
     if(NOT DEBUG)
-        set(VIDEO_EXAMPLE OFF CACHE STRING INTERNAL FORCE)
+         set(VIDEO_EXAMPLE OFF CACHE STRING INTERNAL FORCE)
     endif()
 elseif(DEFINED SELF_TEST AND SELF_TEST)
 	message(STATUS "SELF_TEST = ${SELF_TEST}")
@@ -876,7 +877,6 @@ list(
 	APPEND app_flags
 	${app_example_flags}
 	CONFIG_BUILD_RAM=1 
-	CONFIG_BUILD_LIB=1 
 	CONFIG_PLATFORM_8735B
 	CONFIG_RTL8735B_PLATFORM=1
 	CONFIG_SYSTEM_TIME64=1
@@ -1076,6 +1076,7 @@ target_link_libraries(
 	lightsensor
 	libface
 	ispfeature
+	md
 	${soclib}
     stdc++
 	m
@@ -1100,7 +1101,7 @@ target_link_options(
 	"LINKER:SHELL:-T ${ld_script}"
 	"LINKER:SHELL:-Map=${CMAKE_CURRENT_BINARY_DIR}/${app}.map"
 	"LINKER:-wrap,realloc"
-	"LINKER:-wrap,_realloc_r"	
+	"LINKER:-wrap,_realloc_r"
 	#"SHELL:${CMAKE_CURRENT_SOURCE_DIR}/build/import.lib"
 )
 
@@ -1160,7 +1161,7 @@ add_custom_command(TARGET ${app} POST_BUILD
 	COMMAND ${CMAKE_OBJCOPY} -j .bluetooth_trace.text -Obinary ${app}.axf APP.trace
 	COMMAND ${CMAKE_OBJCOPY} -R .bluetooth_trace.text ${app}.axf 
 	COMMAND ${CMAKE_READELF} -s -W $<TARGET_FILE:${app}>  > ${app}.symbols
-
+	
 	#COMMAND [ -d output ] || mkdir output
 	COMMAND ${CMAKE_COMMAND} -E remove_directory output && ${CMAKE_COMMAND} -E make_directory  output
 	COMMAND ${CMAKE_COMMAND} -E copy ${app}.nm.map output

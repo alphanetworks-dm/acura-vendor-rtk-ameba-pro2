@@ -14,8 +14,6 @@
 #include "platform_opts.h"
 #define WIFI_LOGO_CERTIFICATION_CONFIG 0    //for ping 10k test buffer setting
 
-#define CONFIG_VIDEO_APPLICATION 1
-
 /**
  * SYS_LIGHTWEIGHT_PROT==1: if you want inter-task protection for certain
  * critical regions during buffer allocation, deallocation and memory
@@ -125,12 +123,14 @@ a lot of data that needs to be copied, this should be set high. */
 #define TCP_QUEUE_OOSEQ         1
 
 /* TCP Maximum segment size. */
+// ESSENTIAL2 START
 #ifdef CONFIG_MAX_MTU
 #define netifMTU                CONFIG_MAX_MTU
 #else
 #define netifMTU                1500
 #endif
 #define TCP_MSS                 (netifMTU - 40)	  /* TCP_MSS = (Ethernet MTU - IP header size - TCP header size) */
+// ESSENTIAL2 END
 
 /* TCP sender buffer space (bytes). */
 #define TCP_SND_BUF             (5*TCP_MSS)
@@ -368,7 +368,8 @@ extern unsigned int sys_now(void);
 
 /* ---------- Statistics options ---------- */
 #define LWIP_STATS 0
-#define LWIP_PROVIDE_ERRNO 1
+#undef LWIP_PROVIDE_ERRNO
+#define LWIP_ERRNO_INCLUDE <sys/errno.h>
 
 
 /*
@@ -573,9 +574,10 @@ Certain platform allows computing and verifying the IP, UDP, TCP and ICMP checks
 #define LWIP_SOCKET_SET_ERRNO           1
 #endif
 
-// ESSENTIAL2: enable loopback
+// ESSENTIAL2 START: enable loopback
 #define LWIP_NETIF_LOOPBACK             1
 #define LWIP_HAVE_LOOPIF                1
 #define LWIP_LOOPBACK_MAX_PBUFS         12
+// ESSENTIAL2 END
 
 #endif /* LWIP_HDR_LWIPOPTS_H */

@@ -138,7 +138,7 @@ static int nand_flash_save_certificate(unsigned char *fw_buf, int fw_len)
 	int ret = 0;
 	if (fw_buf[0x3f] == 0x01) {
 		fw_w_len = (fw_buf[0x35] << 8) + fw_buf[0x34];
-		str_address = (fw_buf[0x33] << 24) + (fw_buf[0x33] << 16) + (fw_buf[0x33] << 8) + (fw_buf[0x33] << 0);
+		str_address = (fw_buf[0x33] << 24) + (fw_buf[0x32] << 16) + (fw_buf[0x31] << 8) + (fw_buf[0x30] << 0);
 		if (fw_len >= (str_address + fw_w_len)) {
 			if (fw_buf[str_address] != 0xff) {
 				printf("certificate_1 str_address = 0x%x fw_w_len = %d\r\n", str_address, fw_w_len);

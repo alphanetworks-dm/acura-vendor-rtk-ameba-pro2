@@ -4,6 +4,8 @@
 #include <lwipconf.h>
 #include "tftp.h"
 
+#include <errno.h>
+
 #include "wifi_conf.h"
 
 int tftp_server_recv(int sock, char *pFilename, struct sockaddr_in client, char *pMode, int tid, tftp *tftp_handler) //client put data into server
@@ -17,7 +19,6 @@ int tftp_server_recv(int sock, char *pFilename, struct sockaddr_in client, char 
 	unsigned short int count = 0, rcount = 0;
 	//unsigned char filebuf[64];
 	unsigned char packetbuf[64];
-	extern int errno;
 	char *bufindex, ackbuf[12];
 	struct sockaddr_in data;
 	n = BLOCK_SIZE;
@@ -150,7 +151,6 @@ int tftp_server_send(int sock, char *pFilename, struct sockaddr_in client, char 
 	unsigned short int count = 0, rcount = 0;
 	//unsigned char filebuf[64];
 	unsigned char packetbuf[64];
-	extern int errno;
 	unsigned char *bufindex;
 	struct sockaddr_in data;
 	fd_set read_fds;

@@ -7760,7 +7760,7 @@ struct retention_ssl {
 	uint8_t out_ctr[8];
 };
 
-__attribute__((section (".retention.data"))) struct retention_ssl retention_ssl;
+__attribute__((section (".retention.data"))) struct retention_ssl retention_ssl __attribute__((aligned(32)));
 
 int mbedtls_ssl_retain(mbedtls_ssl_context *ssl)
 {
