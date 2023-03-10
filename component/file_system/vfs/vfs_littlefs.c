@@ -16,7 +16,7 @@
 #include "lfs_reent.h"
 static lfs_t lfs;
 
-#define NOR_BLOCK_COUNT  100
+#define NOR_BLOCK_COUNT  768
 #define NAND_FLASH_BLOCK_COUNT 100
 
 int vfs_ftl_block_read(const struct lfs_config *c, lfs_block_t block, lfs_off_t off, void *buffer, lfs_size_t size);
