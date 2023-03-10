@@ -5,6 +5,7 @@ extern "C" {
 #endif
 
 #include "time.h"
+#include <stdio.h>
 
 #define PATH_MAX 4096
 #define MAX_FS_SIZE 4
