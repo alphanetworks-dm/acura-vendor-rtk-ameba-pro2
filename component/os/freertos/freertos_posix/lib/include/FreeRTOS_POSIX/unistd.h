@@ -61,6 +61,16 @@ char *strerror_r(int errnum, char *buffer, size_t n);
 void bzero(char *s, int n);
 #endif /* defined (__ICCARM__) */
 
+// ESSENTAIL2 START --- VFS wrapper support access function
+#ifndef F_OK
+#define F_OK            0       /* test for existence of file */
+#define X_OK            0x01    /* test for execute or search permission */
+#define W_OK            0x02    /* test for write permission */
+#define R_OK            0x04    /* test for read permission */
+#endif
+int access(const char *pathname, int mode);
+// ESSENTIAL2 END
+
 #ifdef __cplusplus
 }
 #endif
